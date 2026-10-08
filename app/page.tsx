@@ -914,9 +914,11 @@ export default function Home() {
       label: string[],
       labelCols: number,
       W: number,
-      H: number
+      H: number,
+      blink: boolean
     ) {
       const hover = btnHover;
+      const lit = hover || blink;
 
       // Isi gelap
       ctx.fillStyle = hover ? "rgba(12, 12, 22, 0.94)" : "rgba(4, 4, 8, 0.9)";
@@ -933,10 +935,10 @@ export default function Home() {
       ]);
       ctx.save();
       ctx.shadowColor = "#ffffff";
-      ctx.shadowBlur = hover ? 12 : 7;
-      ctx.fillStyle = hover
+      ctx.shadowBlur = lit ? 12 : 0;
+      ctx.fillStyle = lit
         ? "rgba(255, 255, 255, 0.95)"
-        : "rgba(255, 255, 255, 0.6)";
+        : "rgba(255, 255, 255, 0.12)";
       for (let ix = 0; ix < W; ix++) {
         if (!skip.has(`${ix},0`)) ctx.fillRect(bx + ix * s, by, s, s);
         if (!skip.has(`${ix},${H - 1}`))
@@ -1074,10 +1076,11 @@ export default function Home() {
 
         if (morphBox) drawPixelBox(morphBox, morphAlpha, morphDepth);
 
-        // --- Tombol pixel PLAY/STOP nempel di bawah box ---
+        // --- Tombol pixel PLAY/STOP di bawah box (tampil terus, border kedip) ---
         {
-          const bs = unifiedPixelSize;
-          if (morphBox && morphAlpha > 0.3) {
+          const bs = Math.max(2, Math.floor(unifiedPixelSize / 2));
+          const anchor = morphBox ?? boxCS;
+          const blinkOn = Math.floor(timestamp / 450) % 2 === 0;
           const label = isPlaying ? TEXT_STOP : TEXT_PLAY;
           let labelCols = 0;
           label.forEach((ch, i) => {
@@ -1091,16 +1094,13 @@ export default function Home() {
           while (bxo > 0) bxo -= bs;
           const bx =
             Math.round((cx - bw / 2 - bxo) / bs) * bs + bxo;
-          const by = Math.round(morphBox.y + morphBox.h + 2 * bs);
+          const by = Math.round(anchor.y + anchor.h + 4 * unifiedPixelSize);
           btnRect.x = bx;
           btnRect.y = by;
           btnRect.w = bw;
           btnRect.h = (cellsH + 1) * bs;
           btnRect.visible = true;
-          drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH);
-          } else {
-            btnRect.visible = false;
-          }
+          drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH, blinkOn);
         }
       }
 

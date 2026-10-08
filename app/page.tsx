@@ -905,8 +905,8 @@ export default function Home() {
       ctx.restore();
     }
 
-    // --- Tombol pixel PLAY/STOP (sel seukuran grid background) ---
-    // Tiap sudut beda bentuk: TL coak 1, TR coak 2, BR coak L, BL full + tab.
+    // --- Tombol pixel PLAY/STOP ---
+    // Bingkai simetris (coak 1px tiap sudut) + twinkle putih acak per sel.
     function drawPixelButton(
       bx: number,
       by: number,
@@ -914,53 +914,43 @@ export default function Home() {
       label: string[],
       labelCols: number,
       W: number,
-      H: number,
-      blink: boolean
+      H: number
     ) {
       const hover = btnHover;
-      const lit = hover || blink;
 
       // Isi gelap
       ctx.fillStyle = hover ? "rgba(12, 12, 22, 0.94)" : "rgba(4, 4, 8, 0.9)";
       ctx.fillRect(bx, by, W * s, H * s);
 
-      // Bingkai putih glow (bolong di sudut unik)
+      // Bingkai simetris + twinkle putih acak (tidak bareng)
       const skip = new Set([
         `0,0`,
         `${W - 1},0`,
-        `${W - 2},0`,
+        `0,${H - 1}`,
         `${W - 1},${H - 1}`,
-        `${W - 2},${H - 1}`,
-        `${W - 1},${H - 2}`,
       ]);
-      ctx.save();
-      ctx.shadowColor = "#ffffff";
-      ctx.shadowBlur = lit ? 12 : 0;
-      ctx.fillStyle = lit
-        ? "rgba(255, 255, 255, 0.95)"
-        : "rgba(255, 255, 255, 0.12)";
+      const frame: Array<[number, number]> = [];
       for (let ix = 0; ix < W; ix++) {
-        if (!skip.has(`${ix},0`)) ctx.fillRect(bx + ix * s, by, s, s);
+        if (!skip.has(`${ix},0`)) frame.push([bx + ix * s, by]);
         if (!skip.has(`${ix},${H - 1}`))
-          ctx.fillRect(bx + ix * s, by + (H - 1) * s, s, s);
+          frame.push([bx + ix * s, by + (H - 1) * s]);
       }
       for (let iy = 1; iy < H - 1; iy++) {
-        if (!skip.has(`0,${iy}`)) ctx.fillRect(bx, by + iy * s, s, s);
+        if (!skip.has(`0,${iy}`)) frame.push([bx, by + iy * s]);
         if (!skip.has(`${W - 1},${iy}`))
-          ctx.fillRect(bx + (W - 1) * s, by + iy * s, s, s);
+          frame.push([bx + (W - 1) * s, by + iy * s]);
       }
-      ctx.restore();
-
-      // Aksen cyan tiap sudut dalam + tab luar BL
       ctx.save();
-      ctx.shadowColor = "#00f0ff";
-      ctx.shadowBlur = 6;
-      ctx.fillStyle = "#00f0ff";
-      ctx.fillRect(bx + s, by + s, s, s);
-      ctx.fillRect(bx + (W - 2) * s, by + s, s, s);
-      ctx.fillRect(bx + (W - 2) * s, by + (H - 2) * s, s, s);
-      ctx.fillRect(bx + s, by + (H - 2) * s, s, s);
-      ctx.fillRect(bx, by + H * s, s, s);
+      // Lapisan redup: bentuk tombol selalu kebaca
+      ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
+      frame.forEach(([fx, fy]) => ctx.fillRect(fx, fy, s, s));
+      // Twinkle acak per sel
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+      frame.forEach(([fx, fy]) => {
+        if (hover || Math.random() < 0.22) ctx.fillRect(fx, fy, s, s);
+      });
       ctx.restore();
 
       // Teks PLAY/STOP pixel, tengah rata
@@ -1080,7 +1070,6 @@ export default function Home() {
         {
           const bs = Math.max(2, Math.floor(unifiedPixelSize / 2));
           const anchor = morphBox ?? boxCS;
-          const blinkOn = Math.floor(timestamp / 450) % 2 === 0;
           const label = isPlaying ? TEXT_STOP : TEXT_PLAY;
           let labelCols = 0;
           label.forEach((ch, i) => {
@@ -1098,9 +1087,9 @@ export default function Home() {
           btnRect.x = bx;
           btnRect.y = by;
           btnRect.w = bw;
-          btnRect.h = (cellsH + 1) * bs;
+          btnRect.h = cellsH * bs;
           btnRect.visible = true;
-          drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH, blinkOn);
+          drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH);
         }
       }
 

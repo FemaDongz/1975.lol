@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Silkscreen } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const silkscreen = Silkscreen({
@@ -20,7 +21,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={silkscreen.className}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

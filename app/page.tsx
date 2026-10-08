@@ -213,21 +213,7 @@ const GLYPHS_CS: Record<string, string[]> = {
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
-const TEXT_BY = [
-  "B",
-  "Y",
-  " ",
-  "F",
-  "E",
-  "M",
-  "A",
-  "A",
-  "N",
-  "D",
-  "A",
-  "R",
-  "A",
-];
+const TEXT_BY = ["B", "Y", " ", "F", "E", "M", "A"];
 
 const RGB_PALETTE = [
   "#00f0ff",

@@ -416,12 +416,88 @@ export default function Home() {
       ctx!.restore();
     }
 
+    // --- Lantai grid perspektif (garis saja) ---
+    function drawFloorGrid(time: number, alphaScale = 1) {
+      const W = canvas!.width;
+      const H = canvas!.height;
+      const horizonY = Math.floor(H * 0.66);
+      const cx = W / 2;
+
+      ctx!.save();
+      ctx!.lineWidth = 1;
+
+      // Garis vertikal menyebar dari titik hilang
+      const lanes = 22;
+      for (let i = -lanes; i <= lanes; i++) {
+        const topX = cx + i * (W / lanes) * 0.06;
+        const bottomX = cx + i * (W / lanes) * 1.4;
+        const edgeBoost = Math.min(1, Math.abs(i) / lanes);
+        const a = (0.05 + 0.09 * edgeBoost) * alphaScale;
+        ctx!.strokeStyle = `rgba(255, 255, 255, ${a.toFixed(3)})`;
+        ctx!.beginPath();
+        ctx!.moveTo(topX, horizonY);
+        ctx!.lineTo(bottomX, H);
+        ctx!.stroke();
+      }
+
+      // Garis horizon
+      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.32 * alphaScale).toFixed(3)})`;
+      ctx!.shadowColor = "#ffffff";
+      ctx!.shadowBlur = 8;
+      ctx!.beginPath();
+      ctx!.moveTo(0, horizonY + 0.5);
+      ctx!.lineTo(W, horizonY + 0.5);
+      ctx!.stroke();
+      ctx!.shadowBlur = 0;
+
+      // Garis horizontal bergerak ke arah penonton (efek lantai)
+      const rows = 9;
+      const offset = ((time * 0.00016) % 1 + 1) % 1;
+      for (let i = 0; i < rows; i++) {
+        const t = (i / rows + offset) % 1;
+        const p = t * t * t; // perspektif: rapat di horizon, renggang di bawah
+        const y = horizonY + (H - horizonY) * p;
+        const a = (t * 0.32 * alphaScale).toFixed(3);
+        ctx!.strokeStyle = `rgba(255, 255, 255, ${a})`;
+        ctx!.beginPath();
+        ctx!.moveTo(0, y);
+        ctx!.lineTo(W, y);
+        ctx!.stroke();
+      }
+
+      ctx!.restore();
+    }
+
+    // --- Vignette: gelapkan pinggiran layar ---
+    function drawVignette() {
+      const W = canvas!.width;
+      const H = canvas!.height;
+      const g = ctx!.createRadialGradient(
+        W / 2,
+        H / 2,
+        Math.min(W, H) * 0.32,
+        W / 2,
+        H / 2,
+        Math.max(W, H) * 0.72
+      );
+      g.addColorStop(0, "rgba(0, 0, 0, 0)");
+      g.addColorStop(0.6, "rgba(0, 0, 0, 0.28)");
+      g.addColorStop(1, "rgba(0, 0, 0, 0.78)");
+      ctx!.save();
+      ctx!.fillStyle = g;
+      ctx!.fillRect(0, 0, W, H);
+      ctx!.restore();
+    }
+
     function render(timestamp: number) {
       if (!startTime) startTime = timestamp;
       const elapsed = (timestamp - startTime) % TOTAL_CYCLE;
 
       ctx!.fillStyle = "#000000";
       ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
+
+      // Lantai grid di belakang teks pixel
+      drawFloorGrid(timestamp, 1);
 
       if (elapsed < TIME_1975_END) {
         subContainer!.classList.remove("active");
@@ -522,6 +598,9 @@ export default function Home() {
       } else {
         subContainer!.classList.remove("active");
       }
+
+      // Vignette di atas segalanya
+      drawVignette();
 
       rafId = requestAnimationFrame(render);
     }

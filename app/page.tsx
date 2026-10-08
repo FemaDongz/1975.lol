@@ -1086,10 +1086,21 @@ export default function Home() {
 
         if (morphBox) drawPixelBox(morphBox, morphAlpha, morphDepth);
 
-        // --- Tombol pixel PLAY/STOP di bawah box (tampil terus, border kedip) ---
+        // --- Tombol pixel PLAY/STOP (fade-in bareng 1975 saat buka) ---
         {
           const bs = Math.max(2, Math.floor(unifiedPixelSize / 2));
           const anchor = morphBox ?? boxCS;
+          // Alpha tombol ngikutin box: 0 saat boot, fade-in di 1975 pertama
+          let btnAlpha = 1;
+          if (elapsed < 0) {
+            btnAlpha = 0;
+          } else if (firstCycle && elapsed < TIME_1975_HOLD) {
+            const bp = (elapsed - TIME_1975_START) / T_1975_APPEAR;
+            btnAlpha = Math.min(1, 0.15 + bp * 1.5);
+          }
+          if (btnAlpha <= 0.01) {
+            btnRect.visible = false;
+          } else {
           const label = isPlaying ? TEXT_STOP : TEXT_PLAY;
           let labelCols = 0;
           label.forEach((ch, i) => {
@@ -1109,7 +1120,11 @@ export default function Home() {
           btnRect.w = bw;
           btnRect.h = cellsH * bs;
           btnRect.visible = true;
+          ctx.save();
+          ctx.globalAlpha = btnAlpha;
           drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH, timestamp);
+          ctx.restore();
+          }
         }
       }
 
@@ -1117,9 +1132,10 @@ export default function Home() {
       // FASE 1: TEKS PIXEL "1975"
       // =========================================================================
       if (elapsed < TIME_1975_END) {
-        // 1. Muncul RGB
+        // 1. Muncul RGB (loop lanjutan: 1975 sudah larut masuk, langsung solid)
         if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
-          const progress = (elapsed - TIME_1975_START) / T_1975_APPEAR;
+          const rawP = (elapsed - TIME_1975_START) / T_1975_APPEAR;
+          const progress = firstCycle ? rawP : Infinity;
           pixels1975.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;

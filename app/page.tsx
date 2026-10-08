@@ -256,6 +256,10 @@ export default function Home() {
     let pixels1975: Pixel[] = [];
     let pixelsCS: Pixel[] = [];
 
+    type Box = { x: number; y: number; w: number; h: number };
+    let box1975: Box = { x: 0, y: 0, w: 0, h: 0 };
+    let boxCS: Box = { x: 0, y: 0, w: 0, h: 0 };
+
     // Timeline Durasi
     const T_INITIAL_DELAY = 1500;
     const T_1975_APPEAR = 1900;
@@ -304,6 +308,17 @@ export default function Home() {
       const startX1975 = Math.floor((canvas!.width - totalWidth1975) / 2);
       const startY1975 = Math.floor((canvas!.height - 11 * pixelSize1975) / 2);
 
+      // Kotak 3D gelap pembungkus teks 1975 (pixel seolah muncul dari dalamnya)
+      {
+        const pad = pixelSize1975 * 2.2;
+        box1975 = {
+          x: startX1975 - pad,
+          y: startY1975 - pad,
+          w: totalWidth1975 + pad * 2,
+          h: 11 * pixelSize1975 + pad * 2,
+        };
+      }
+
       let curX = startX1975;
       TEXT_1975.forEach((char) => {
         const matrix = GLYPHS_1975[char];
@@ -342,6 +357,17 @@ export default function Home() {
       const totalWidthCS = totalColsCS * pixelSizeCS;
       const startXCS = Math.floor((canvas!.width - totalWidthCS) / 2);
       const startYCS = Math.floor(canvas!.height / 2 - (9 * pixelSizeCS) / 2 - 25);
+
+      // Kotak 3D gelap pembungkus teks COMING SOON
+      {
+        const pad = pixelSizeCS * 2.2;
+        boxCS = {
+          x: startXCS - pad,
+          y: startYCS - pad,
+          w: totalWidthCS + pad * 2,
+          h: 9 * pixelSizeCS + pad * 2,
+        };
+      }
 
       let curX_CS = startXCS;
       TEXT_CS.forEach((char) => {
@@ -416,54 +442,92 @@ export default function Home() {
       ctx!.restore();
     }
 
-    // --- Lantai grid perspektif (garis saja) ---
-    function drawFloorGrid(time: number, alphaScale = 1) {
-      const W = canvas!.width;
-      const H = canvas!.height;
-      const horizonY = Math.floor(H * 0.66);
-      const cx = W / 2;
+    // --- Kotak pixel 3D gelap (pemetaan) di belakang teks ---
+    // Pixel seolah muncul dari dalam box ini.
+    function drawPixelBox(box: Box, alphaScale = 1) {
+      if (box.w <= 0 || box.h <= 0) return;
+      const dx = Math.min(36, Math.max(14, box.w * 0.055));
+      const dy = -Math.min(30, Math.max(12, box.h * 0.14));
+
+      const fx0 = box.x;
+      const fy0 = box.y;
+      const fx1 = box.x + box.w;
+      const fy1 = box.y + box.h;
+      const bx0 = fx0 + dx;
+      const by0 = fy0 + dy;
+      const bx1 = fx1 + dx;
+      const by1 = fy1 + dy;
 
       ctx!.save();
       ctx!.lineWidth = 1;
 
-      // Garis vertikal menyebar dari titik hilang
-      const lanes = 22;
-      for (let i = -lanes; i <= lanes; i++) {
-        const topX = cx + i * (W / lanes) * 0.06;
-        const bottomX = cx + i * (W / lanes) * 1.4;
-        const edgeBoost = Math.min(1, Math.abs(i) / lanes);
-        const a = (0.05 + 0.09 * edgeBoost) * alphaScale;
-        ctx!.strokeStyle = `rgba(255, 255, 255, ${a.toFixed(3)})`;
-        ctx!.beginPath();
-        ctx!.moveTo(topX, horizonY);
-        ctx!.lineTo(bottomX, H);
-        ctx!.stroke();
-      }
+      // Sisi belakang (lebih terang sedikit biar berasa dalam)
+      ctx!.fillStyle = `rgba(16, 16, 24, ${(0.95 * alphaScale).toFixed(3)})`;
+      ctx!.fillRect(bx0, by0, box.w, box.h);
 
-      // Garis horizon
-      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.32 * alphaScale).toFixed(3)})`;
-      ctx!.shadowColor = "#ffffff";
-      ctx!.shadowBlur = 8;
+      // Dinding sisi: atas & kanan (efek extrude 3D)
+      ctx!.fillStyle = `rgba(26, 26, 38, ${(0.9 * alphaScale).toFixed(3)})`;
       ctx!.beginPath();
-      ctx!.moveTo(0, horizonY + 0.5);
-      ctx!.lineTo(W, horizonY + 0.5);
-      ctx!.stroke();
-      ctx!.shadowBlur = 0;
+      ctx!.moveTo(fx0, fy0);
+      ctx!.lineTo(bx0, by0);
+      ctx!.lineTo(bx1, by0);
+      ctx!.lineTo(fx1, fy0);
+      ctx!.closePath();
+      ctx!.fill();
+      ctx!.fillStyle = `rgba(20, 20, 30, ${(0.9 * alphaScale).toFixed(3)})`;
+      ctx!.beginPath();
+      ctx!.moveTo(fx1, fy0);
+      ctx!.lineTo(bx1, by0);
+      ctx!.lineTo(bx1, by1);
+      ctx!.lineTo(fx1, fy1);
+      ctx!.closePath();
+      ctx!.fill();
 
-      // Garis horizontal bergerak ke arah penonton (efek lantai)
-      const rows = 9;
-      const offset = ((time * 0.00016) % 1 + 1) % 1;
-      for (let i = 0; i < rows; i++) {
-        const t = (i / rows + offset) % 1;
-        const p = t * t * t; // perspektif: rapat di horizon, renggang di bawah
-        const y = horizonY + (H - horizonY) * p;
-        const a = (t * 0.32 * alphaScale).toFixed(3);
-        ctx!.strokeStyle = `rgba(255, 255, 255, ${a})`;
+      // Rusuk penghubung depan-belakang (garis pemetaan)
+      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.18 * alphaScale).toFixed(3)})`;
+      const corners: Array<[number, number, number, number]> = [
+        [fx0, fy0, bx0, by0],
+        [fx1, fy0, bx1, by0],
+        [fx0, fy1, bx0, by1],
+        [fx1, fy1, bx1, by1],
+      ];
+      corners.forEach(([x0, y0, x1, y1]) => {
         ctx!.beginPath();
-        ctx!.moveTo(0, y);
-        ctx!.lineTo(W, y);
+        ctx!.moveTo(x0, y0);
+        ctx!.lineTo(x1, y1);
+        ctx!.stroke();
+      });
+
+      // Bingkai belakang
+      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.12 * alphaScale).toFixed(3)})`;
+      ctx!.strokeRect(bx0, by0, box.w, box.h);
+
+      // Badan depan gelap (tempat pixel muncul)
+      ctx!.fillStyle = `rgba(4, 4, 8, ${(0.82 * alphaScale).toFixed(3)})`;
+      ctx!.fillRect(fx0, fy0, box.w, box.h);
+
+      // Grid pemetaan samar di dalam box
+      const step = Math.max(18, Math.floor(box.w / 24));
+      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.05 * alphaScale).toFixed(3)})`;
+      for (let gx = fx0 + step; gx < fx1; gx += step) {
+        ctx!.beginPath();
+        ctx!.moveTo(gx, fy0);
+        ctx!.lineTo(gx, fy1);
         ctx!.stroke();
       }
+      for (let gy = fy0 + step; gy < fy1; gy += step) {
+        ctx!.beginPath();
+        ctx!.moveTo(fx0, gy);
+        ctx!.lineTo(fx1, gy);
+        ctx!.stroke();
+      }
+
+      // Bingkai depan + glow tipis
+      ctx!.shadowColor = "#ffffff";
+      ctx!.shadowBlur = 10 * alphaScale;
+      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.28 * alphaScale).toFixed(3)})`;
+      ctx!.strokeRect(fx0, fy0, box.w, box.h);
+      ctx!.shadowBlur = 0;
 
       ctx!.restore();
     }
@@ -496,9 +560,6 @@ export default function Home() {
       ctx!.fillStyle = "#000000";
       ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
 
-      // Lantai grid di belakang teks pixel
-      drawFloorGrid(timestamp, 1);
-
       if (elapsed < TIME_1975_END) {
         subContainer!.classList.remove("active");
         subCreditEl!.classList.remove("vanishing-red");
@@ -507,6 +568,8 @@ export default function Home() {
 
         if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
           const progress = (elapsed - TIME_1975_START) / T_1975_APPEAR;
+          // Box memudar masuk duluan, pixel muncul dari dalamnya
+          drawPixelBox(box1975, Math.min(1, 0.2 + progress * 1.4));
           pixels1975.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -524,11 +587,13 @@ export default function Home() {
             }
           });
         } else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_VANISH) {
+          drawPixelBox(box1975, 1);
           pixels1975.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, pixelSize1975);
           });
         } else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_1975_END) {
           const progress = (elapsed - TIME_1975_VANISH) / T_1975_VANISH;
+          drawPixelBox(box1975, Math.max(0.25, 1 - progress * 0.6));
           pixels1975.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {
@@ -546,6 +611,7 @@ export default function Home() {
           subCreditEl!.style.opacity = "1";
 
           const progress = (elapsed - TIME_CS_START) / T_CS_APPEAR;
+          drawPixelBox(boxCS, Math.min(1, 0.2 + progress * 1.4));
           pixelsCS.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -569,12 +635,14 @@ export default function Home() {
             subScrambler.start("1975.lol owned by femaandara", 2.2, 5);
           }
         } else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
+          drawPixelBox(boxCS, 1);
           pixelsCS.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, pixelSizeCS);
           });
         } else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_CS_END) {
           const progress = (elapsed - TIME_CS_VANISH) / T_CS_VANISH;
 
+          drawPixelBox(boxCS, Math.max(0.25, 1 - progress * 0.6));
           pixelsCS.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {

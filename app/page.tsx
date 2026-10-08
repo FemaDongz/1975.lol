@@ -734,8 +734,10 @@ export default function Home() {
       ctx.closePath();
       ctx.fill();
 
-      // Rusuk penghubung depan-belakang (garis pemetaan)
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.16 * alpha).toFixed(3)})`;
+      // Rusuk penghubung depan-belakang (garis pemetaan) — putih glow
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 8 * alpha;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.4 * alpha).toFixed(3)})`;
       const corners: Array<[number, number, number, number]> = [
         [fx0, fy0, bx0, by0],
         [fx1, fy0, bx1, by0],
@@ -749,9 +751,10 @@ export default function Home() {
         ctx.stroke();
       });
 
-      // Bingkai belakang
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.1 * alpha).toFixed(3)})`;
+      // Bingkai belakang — putih glow
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.3 * alpha).toFixed(3)})`;
       ctx.strokeRect(bx0, by0, box.w, box.h);
+      ctx.shadowBlur = 0;
 
       // Badan depan gelap (pixel teks muncul dari atasnya)
       ctx.fillStyle = `rgba(3, 3, 7, ${(0.85 * alpha).toFixed(3)})`;
@@ -787,10 +790,10 @@ export default function Home() {
         ctx.stroke();
       }
 
-      // Bingkai depan + glow tipis
+      // Bingkai depan — putih glow
       ctx.shadowColor = "#ffffff";
-      ctx.shadowBlur = 10 * alpha;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.25 * alpha).toFixed(3)})`;
+      ctx.shadowBlur = 18 * alpha;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.55 * alpha).toFixed(3)})`;
       ctx.strokeRect(fx0, fy0, box.w, box.h);
       ctx.shadowBlur = 0;
 

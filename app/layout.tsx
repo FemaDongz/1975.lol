@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Silkscreen } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const silkscreen = Silkscreen({
@@ -27,7 +28,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={silkscreen.className}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

@@ -208,12 +208,47 @@ const GLYPHS_CS: Record<string, string[]> = {
     "██   ██",
     "██   ██",
   ],
+  P: [
+    "██████",
+    "██████",
+    "██  ██",
+    "██  ██",
+    "██████",
+    "█████ ",
+    "██    ",
+    "██    ",
+    "██    ",
+  ],
+  L: [
+    "██    ",
+    "██    ",
+    "██    ",
+    "██    ",
+    "██    ",
+    "██    ",
+    "██    ",
+    "██████",
+    "██████",
+  ],
+  T: [
+    "███████",
+    "███████",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+  ],
   " ": ["   ", "   ", "   ", "   ", "   ", "   ", "   ", "   ", "   "],
 };
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
 const TEXT_BY = ["B", "Y", " ", "F", "E", "M", "A"];
+const TEXT_PLAY = ["P", "L", "A", "Y"];
+const TEXT_STOP = ["S", "T", "O", "P"];
 
 const RGB_PALETTE = [
   "#00f0ff",
@@ -255,6 +290,48 @@ export default function Home() {
     const canvas: HTMLCanvasElement = canvasEl;
     const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 
+    // Audio: CDN jsDelivr dulu (ngebut), fallback ke file lokal Vercel
+    const CDN_SRC =
+      "https://cdn.jsdelivr.net/gh/FemaDongz/1975.lol@main/public/audio/about-you.mp3";
+    const LOCAL_SRC = "/audio/about-you.mp3";
+    const audio = new Audio();
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.src = CDN_SRC;
+    let useLocal = false;
+    const ensureLocalSrc = () => {
+      if (!useLocal) {
+        useLocal = true;
+        audio.src = LOCAL_SRC;
+      }
+    };
+    audio.addEventListener("error", ensureLocalSrc);
+
+    const togglePlay = () => {
+      if (audio.paused) {
+        const pr = audio.play();
+        if (pr) {
+          pr.then(() => {
+            isPlaying = true;
+          }).catch(() => {
+            // CDN gagal (misal cache belum update) -> coba file lokal
+            ensureLocalSrc();
+            const pr2 = audio.play();
+            if (pr2) {
+              pr2.then(() => {
+                isPlaying = true;
+              }).catch(() => {});
+            }
+          });
+        } else {
+          isPlaying = true;
+        }
+      } else {
+        audio.pause();
+        isPlaying = false;
+      }
+    };
+
     const bgGridCanvas = document.createElement("canvas");
 
     let unifiedPixelSize = 8;
@@ -264,6 +341,11 @@ export default function Home() {
     let boxCS: Box = { x: 0, y: 0, w: 0, h: 0 };
     let pixelsBY: Pixel[] = [];
     let boxBY: Box = { x: 0, y: 0, w: 0, h: 0 };
+
+    // State tombol pixel PLAY/STOP
+    let btnHover = false;
+    let isPlaying = false;
+    const btnRect = { x: 0, y: 0, w: 0, h: 0, visible: false };
 
     // --- CLASS TILE 3D ACAK BERPINDAH (MENDALAM & MENONJOL) ---
     class DynamicTile {
@@ -647,6 +729,29 @@ export default function Home() {
     const handleOrientation = () => setTimeout(resize, 150);
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", handleOrientation);
+
+    // Klik/hover tombol pixel
+    const inButton = (e: MouseEvent) => {
+      if (!btnRect.visible) return false;
+      const r = canvas.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      return (
+        x >= btnRect.x &&
+        x <= btnRect.x + btnRect.w &&
+        y >= btnRect.y &&
+        y <= btnRect.y + btnRect.h
+      );
+    };
+    const onCanvasClick = (e: MouseEvent) => {
+      if (inButton(e)) togglePlay();
+    };
+    const onCanvasMove = (e: MouseEvent) => {
+      btnHover = inButton(e);
+      canvas.style.cursor = btnHover ? "pointer" : "default";
+    };
+    canvas.addEventListener("click", onCanvasClick);
+    canvas.addEventListener("mousemove", onCanvasMove);
     resize();
 
     // Gambar Piksel Teks
@@ -800,6 +905,84 @@ export default function Home() {
       ctx.restore();
     }
 
+    // --- Tombol pixel PLAY/STOP (sel seukuran grid background) ---
+    // Tiap sudut beda bentuk: TL coak 1, TR coak 2, BR coak L, BL full + tab.
+    function drawPixelButton(
+      bx: number,
+      by: number,
+      s: number,
+      label: string[],
+      labelCols: number,
+      W: number,
+      H: number
+    ) {
+      const hover = btnHover;
+
+      // Isi gelap
+      ctx.fillStyle = hover ? "rgba(12, 12, 22, 0.94)" : "rgba(4, 4, 8, 0.9)";
+      ctx.fillRect(bx, by, W * s, H * s);
+
+      // Bingkai putih glow (bolong di sudut unik)
+      const skip = new Set([
+        `0,0`,
+        `${W - 1},0`,
+        `${W - 2},0`,
+        `${W - 1},${H - 1}`,
+        `${W - 2},${H - 1}`,
+        `${W - 1},${H - 2}`,
+      ]);
+      ctx.save();
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = hover ? 12 : 7;
+      ctx.fillStyle = hover
+        ? "rgba(255, 255, 255, 0.95)"
+        : "rgba(255, 255, 255, 0.6)";
+      for (let ix = 0; ix < W; ix++) {
+        if (!skip.has(`${ix},0`)) ctx.fillRect(bx + ix * s, by, s, s);
+        if (!skip.has(`${ix},${H - 1}`))
+          ctx.fillRect(bx + ix * s, by + (H - 1) * s, s, s);
+      }
+      for (let iy = 1; iy < H - 1; iy++) {
+        if (!skip.has(`0,${iy}`)) ctx.fillRect(bx, by + iy * s, s, s);
+        if (!skip.has(`${W - 1},${iy}`))
+          ctx.fillRect(bx + (W - 1) * s, by + iy * s, s, s);
+      }
+      ctx.restore();
+
+      // Aksen cyan tiap sudut dalam + tab luar BL
+      ctx.save();
+      ctx.shadowColor = "#00f0ff";
+      ctx.shadowBlur = 6;
+      ctx.fillStyle = "#00f0ff";
+      ctx.fillRect(bx + s, by + s, s, s);
+      ctx.fillRect(bx + (W - 2) * s, by + s, s, s);
+      ctx.fillRect(bx + (W - 2) * s, by + (H - 2) * s, s, s);
+      ctx.fillRect(bx + s, by + (H - 2) * s, s, s);
+      ctx.fillRect(bx, by + H * s, s, s);
+      ctx.restore();
+
+      // Teks PLAY/STOP pixel, tengah rata
+      const tx = bx + Math.floor((W - labelCols) / 2) * s;
+      const ty = by + 2 * s;
+      ctx.save();
+      if (hover) {
+        ctx.shadowColor = "#ffffff";
+        ctx.shadowBlur = 8;
+      }
+      ctx.fillStyle = "#ffffff";
+      let ox = tx;
+      label.forEach((ch) => {
+        const m = GLYPHS_CS[ch];
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < m[0].length; c++) {
+            if (m[r][c] === "█") ctx.fillRect(ox + c * s, ty + r * s, s, s);
+          }
+        }
+        ox += (m[0].length + 1) * s;
+      });
+      ctx.restore();
+    }
+
     function render(timestamp: number) {
       if (!startTime) startTime = timestamp;
       if (!lastTimestamp) lastTimestamp = timestamp;
@@ -890,6 +1073,35 @@ export default function Home() {
         }
 
         if (morphBox) drawPixelBox(morphBox, morphAlpha, morphDepth);
+
+        // --- Tombol pixel PLAY/STOP nempel di bawah box ---
+        {
+          const bs = unifiedPixelSize;
+          if (morphBox && morphAlpha > 0.3) {
+          const label = isPlaying ? TEXT_STOP : TEXT_PLAY;
+          let labelCols = 0;
+          label.forEach((ch, i) => {
+            labelCols += GLYPHS_CS[ch][0].length;
+            if (i < label.length - 1) labelCols += 1;
+          });
+          const cellsW = 37; // muat PLAY (29 kol) + padding, STOP ikut tengah
+          const cellsH = 13;
+          const bw = cellsW * bs;
+          let bxo = cx % bs;
+          while (bxo > 0) bxo -= bs;
+          const bx =
+            Math.round((cx - bw / 2 - bxo) / bs) * bs + bxo;
+          const by = Math.round(morphBox.y + morphBox.h + 2 * bs);
+          btnRect.x = bx;
+          btnRect.y = by;
+          btnRect.w = bw;
+          btnRect.h = (cellsH + 1) * bs;
+          btnRect.visible = true;
+          drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH);
+          } else {
+            btnRect.visible = false;
+          }
+        }
       }
 
       // =========================================================================
@@ -1040,6 +1252,9 @@ export default function Home() {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", handleOrientation);
+      canvas.removeEventListener("click", onCanvasClick);
+      canvas.removeEventListener("mousemove", onCanvasMove);
+      audio.pause();
     };
   }, []);
 

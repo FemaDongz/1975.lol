@@ -346,6 +346,10 @@ export default function Home() {
     let btnHover = false;
     let isPlaying = false;
     const btnRect = { x: 0, y: 0, w: 0, h: 0, visible: false };
+    // Fase acak tiap sel border biar twinkle-nya lambat & tidak bareng
+    const twPhases: number[] = Array.from({ length: 128 }, () =>
+      Math.random() * Math.PI * 2
+    );
 
     // --- CLASS TILE 3D ACAK BERPINDAH (MENDALAM & MENONJOL) ---
     class DynamicTile {
@@ -914,7 +918,8 @@ export default function Home() {
       label: string[],
       labelCols: number,
       W: number,
-      H: number
+      H: number,
+      now: number
     ) {
       const hover = btnHover;
 
@@ -941,27 +946,33 @@ export default function Home() {
           frame.push([bx + (W - 1) * s, by + iy * s]);
       }
       ctx.save();
+      const edgeBase = isPlaying ? "255, 51, 85" : "255, 255, 255";
       // Lapisan redup: bentuk tombol selalu kebaca
-      ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
+      ctx.fillStyle = `rgba(${edgeBase}, 0.14)`;
       frame.forEach(([fx, fy]) => ctx.fillRect(fx, fy, s, s));
-      // Twinkle acak per sel
-      ctx.shadowColor = "#ffffff";
+      // Twinkle lambat: tiap sel fade in/out perlahan dengan fase sendiri
+      ctx.shadowColor = isPlaying ? "#ff3355" : "#ffffff";
       ctx.shadowBlur = 8;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-      frame.forEach(([fx, fy]) => {
-        if (hover || Math.random() < 0.22) ctx.fillRect(fx, fy, s, s);
+      ctx.fillStyle = `rgba(${edgeBase}, 1)`;
+      frame.forEach(([fx, fy], i) => {
+        if (hover) {
+          ctx.globalAlpha = 0.95;
+        } else {
+          const ph = twPhases[i % twPhases.length];
+          const wave = 0.5 + 0.5 * Math.sin(now * 0.0016 + ph);
+          ctx.globalAlpha = 0.1 + 0.85 * wave * wave;
+        }
+        ctx.fillRect(fx, fy, s, s);
       });
       ctx.restore();
 
-      // Teks PLAY/STOP pixel, tengah rata
+      // Teks PLAY/STOP pixel, tengah rata (merah penuh saat mode STOP)
       const tx = bx + Math.floor((W - labelCols) / 2) * s;
       const ty = by + 2 * s;
       ctx.save();
-      if (hover) {
-        ctx.shadowColor = "#ffffff";
-        ctx.shadowBlur = 8;
-      }
-      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = isPlaying ? "#ff3355" : "#ffffff";
+      ctx.shadowBlur = isPlaying || hover ? 8 : 0;
+      ctx.fillStyle = isPlaying ? "#ff4d6a" : "#ffffff";
       let ox = tx;
       label.forEach((ch) => {
         const m = GLYPHS_CS[ch];
@@ -1089,7 +1100,7 @@ export default function Home() {
           btnRect.w = bw;
           btnRect.h = cellsH * bs;
           btnRect.visible = true;
-          drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH);
+          drawPixelButton(bx, by, bs, label, labelCols, cellsW, cellsH, timestamp);
         }
       }
 

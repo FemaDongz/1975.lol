@@ -131,11 +131,103 @@ const GLYPHS_CS: Record<string, string[]> = {
     "██████",
     "█████ ",
   ],
+  B: [
+    "█████ ",
+    "██████",
+    "██  ██",
+    "██  ██",
+    "██████",
+    "██████",
+    "██  ██",
+    "██████",
+    "█████ ",
+  ],
+  Y: [
+    "██   ██",
+    "██   ██",
+    "██   ██",
+    " █████ ",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+    "  ███  ",
+  ],
+  F: [
+    "██████",
+    "██████",
+    "██    ",
+    "██    ",
+    "█████ ",
+    "█████ ",
+    "██    ",
+    "██    ",
+    "██    ",
+  ],
+  E: [
+    "██████",
+    "██████",
+    "██    ",
+    "██    ",
+    "█████ ",
+    "█████ ",
+    "██    ",
+    "██████",
+    "██████",
+  ],
+  A: [
+    "  ███  ",
+    " █████ ",
+    "██   ██",
+    "██   ██",
+    "███████",
+    "███████",
+    "██   ██",
+    "██   ██",
+    "██   ██",
+  ],
+  D: [
+    "█████ ",
+    "██████",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██████",
+    "█████ ",
+  ],
+  R: [
+    "██████ ",
+    "██   ██",
+    "██   ██",
+    "██   ██",
+    "██████ ",
+    "█████  ",
+    "██  ██ ",
+    "██   ██",
+    "██   ██",
+  ],
   " ": ["   ", "   ", "   ", "   ", "   ", "   ", "   ", "   ", "   "],
 };
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
+const TEXT_BY = [
+  "B",
+  "Y",
+  " ",
+  "F",
+  "E",
+  "M",
+  "A",
+  "A",
+  "N",
+  "D",
+  "A",
+  "R",
+  "A",
+];
 
 const RGB_PALETTE = [
   "#00f0ff",
@@ -164,107 +256,17 @@ type Pixel = {
   rgbColor: string;
 };
 
-type QueueItem = {
-  to: string;
-  start: number;
-  end: number;
-  char: string;
-};
-
-// --- DECRYPTOR SUBTEKS PIXEL ---
-class TextScrambler {
-  el: HTMLElement;
-  chars: string;
-  queue: QueueItem[];
-  frame: number;
-  running: boolean;
-
-  constructor(el: HTMLElement, chars = "0123456789abcdefghijklmnopqrstuvwxyz._/!<>*&") {
-    this.el = el;
-    this.chars = chars;
-    this.queue = [];
-    this.frame = 0;
-    this.running = false;
-  }
-
-  start(targetText: string, speed = 2.4, delayPerWord = 6) {
-    this.queue = [];
-    let currentDelay = 0;
-    const words = targetText.split(" ");
-
-    words.forEach((word) => {
-      for (let i = 0; i < word.length; i++) {
-        const to = word[i];
-        const start = Math.floor(currentDelay + i * (2.8 / speed));
-        const end = start + Math.floor(7 / speed);
-        this.queue.push({ to, start, end, char: "" });
-      }
-      this.queue.push({ to: " ", start: 0, end: 0, char: " " });
-      currentDelay += delayPerWord;
-    });
-
-    if (this.queue.length > 0 && this.queue[this.queue.length - 1].to === " ") {
-      this.queue.pop();
-    }
-
-    this.frame = 0;
-    this.running = true;
-  }
-
-  update() {
-    if (!this.running) return;
-
-    let output = "";
-    let complete = 0;
-
-    for (let i = 0; i < this.queue.length; i++) {
-      const item = this.queue[i];
-
-      if (item.to === " ") {
-        output += " ";
-        complete++;
-        continue;
-      }
-
-      if (this.frame >= item.end) {
-        complete++;
-        output += item.to;
-      } else if (this.frame >= item.start) {
-        if (!item.char || Math.random() < 0.35) {
-          item.char = this.chars[Math.floor(Math.random() * this.chars.length)];
-        }
-        output += `<span class="decrypting">${item.char}</span>`;
-      } else {
-        output += "";
-      }
-    }
-
-    this.el.innerHTML = output;
-    this.frame++;
-
-    if (complete === this.queue.length) {
-      this.running = false;
-    }
-  }
-}
-
 type TileType = "protruding" | "sunken";
 
 type Box = { x: number; y: number; w: number; h: number };
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const subContainerRef = useRef<HTMLDivElement>(null);
-  const subCreditRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvasEl = canvasRef.current;
-    const subContainerEl = subContainerRef.current;
-    const subCreditEl0 = subCreditRef.current;
-    if (!canvasEl || !subContainerEl || !subCreditEl0) return;
+    if (!canvasEl) return;
     const canvas: HTMLCanvasElement = canvasEl;
-    const subContainer: HTMLDivElement = subContainerEl;
-    const subCreditEl: HTMLDivElement = subCreditEl0;
     const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 
     const bgGridCanvas = document.createElement("canvas");
@@ -274,6 +276,8 @@ export default function Home() {
     let pixelsCS: Pixel[] = [];
     let box1975: Box = { x: 0, y: 0, w: 0, h: 0 };
     let boxCS: Box = { x: 0, y: 0, w: 0, h: 0 };
+    let pixelsBY: Pixel[] = [];
+    let boxBY: Box = { x: 0, y: 0, w: 0, h: 0 };
 
     // --- CLASS TILE 3D ACAK BERPINDAH (MENDALAM & MENONJOL) ---
     class DynamicTile {
@@ -380,6 +384,10 @@ export default function Home() {
     const T_CS_APPEAR = 1900;
     const T_CS_HOLD = 3800;
     const T_CS_VANISH = 1800;
+    const T_GAP_2 = 700; // Jeda gelap ke BY FEMAANDARA
+    const T_BY_APPEAR = 1900; // BY FEMAANDARA Pixel RGB kedip
+    const T_BY_HOLD = 3000; // BY FEMAANDARA Putih glow
+    const T_BY_VANISH = 1800; // BY FEMAANDARA Merah kedip keluar
     const T_END_DELAY = 1200;
 
     const TIME_1975_START = T_INITIAL_DELAY;
@@ -392,14 +400,16 @@ export default function Home() {
     const TIME_CS_VANISH = TIME_CS_HOLD + T_CS_HOLD;
     const TIME_CS_END = TIME_CS_VANISH + T_CS_VANISH;
 
-    const TOTAL_CYCLE = TIME_CS_END + T_END_DELAY;
+    const TIME_BY_START = TIME_CS_END + T_GAP_2;
+    const TIME_BY_HOLD = TIME_BY_START + T_BY_APPEAR;
+    const TIME_BY_VANISH = TIME_BY_HOLD + T_BY_HOLD;
+    const TIME_BY_END = TIME_BY_VANISH + T_BY_VANISH;
+
+    const TOTAL_CYCLE = TIME_BY_END + T_END_DELAY;
 
     let startTime: number | null = null;
     let lastTimestamp = 0;
-    let subtextTriggered = false;
     let rafId = 0;
-
-    const subScrambler = new TextScrambler(subCreditEl);
 
     function getTotalCols1975() {
       let cols = 0;
@@ -415,6 +425,15 @@ export default function Home() {
       for (let i = 0; i < TEXT_CS.length; i++) {
         cols += GLYPHS_CS[TEXT_CS[i]][0].length;
         if (i < TEXT_CS.length - 1) cols += 1;
+      }
+      return cols;
+    }
+
+    function getTotalColsBY() {
+      let cols = 0;
+      for (let i = 0; i < TEXT_BY.length; i++) {
+        cols += GLYPHS_CS[TEXT_BY[i]][0].length;
+        if (i < TEXT_BY.length - 1) cols += 1;
       }
       return cols;
     }
@@ -464,13 +483,18 @@ export default function Home() {
     function buildAllPixels() {
       const totalCols1975 = getTotalCols1975();
       const totalColsCS = getTotalColsCS();
+      const totalColsBY = getTotalColsBY();
 
-      // Responsif HP & Desktop
+      // Responsif HP & Desktop (pakai teks terlebar biar semua muat)
       const isMobile = canvas.width < 500;
       const maxColsWidth = canvas.width * (isMobile ? 0.94 : 0.84);
       const maxColsHeight = canvas.height * (isMobile ? 0.26 : 0.36);
 
-      const baseSize = Math.min(maxColsWidth / totalColsCS, maxColsHeight / 11);
+      const baseSize = Math.min(
+        maxColsWidth / totalColsCS,
+        maxColsWidth / totalColsBY,
+        maxColsHeight / 11
+      );
 
       unifiedPixelSize = Math.max(3, Math.floor(baseSize));
 
@@ -534,11 +558,8 @@ export default function Home() {
         Math.round((cx - totalWidthCS / 2 - originX) / unifiedPixelSize) *
           unifiedPixelSize +
         originX;
-      const yOffsetCS = isMobile ? 18 : 26;
       const startYCS =
-        Math.round(
-          (cy - (9 * unifiedPixelSize) / 2 - yOffsetCS - originY) / unifiedPixelSize
-        ) *
+        Math.round((cy - (9 * unifiedPixelSize) / 2 - originY) / unifiedPixelSize) *
           unifiedPixelSize +
         originY;
 
@@ -574,11 +595,51 @@ export default function Home() {
         curX_CS += (charW + 1) * unifiedPixelSize;
       });
 
-      // Posisikan Subteks
-      const subY = startYCS + 9 * unifiedPixelSize + (isMobile ? 18 : 24);
-      subContainer.style.top = `${subY}px`;
+      // 3. Matriks BY FEMAANDARA (vertikal tengah, snap ke grid)
+      pixelsBY = [];
+      const totalWidthBY = totalColsBY * unifiedPixelSize;
+      const startXBY =
+        Math.round((cx - totalWidthBY / 2 - originX) / unifiedPixelSize) *
+          unifiedPixelSize +
+        originX;
+      const startYBY =
+        Math.round((cy - (9 * unifiedPixelSize) / 2 - originY) / unifiedPixelSize) *
+          unifiedPixelSize +
+        originY;
 
-      // 3. Tile Dinamis (3 KALI LEBIH BANYAK TILE 3D MENONJOL RGB: 14 * 3 = 42)
+      // Kotak 3D gelap pembungkus teks BY (snap ke grid background)
+      {
+        const pad = unifiedPixelSize * 2;
+        boxBY = {
+          x: startXBY - pad,
+          y: startYBY - pad,
+          w: totalWidthBY + pad * 2,
+          h: 9 * unifiedPixelSize + pad * 2,
+        };
+      }
+
+      let curX_BY = startXBY;
+      TEXT_BY.forEach((char) => {
+        const matrix = GLYPHS_CS[char];
+        const charW = matrix[0].length;
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < charW; c++) {
+            if (matrix[r][c] === "█") {
+              pixelsBY.push({
+                baseX: curX_BY + c * unifiedPixelSize,
+                baseY: startYBY + r * unifiedPixelSize,
+                appearTime: Math.random() * 0.76,
+                disappearTime: Math.random() * 0.76,
+                rgbColor:
+                  RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)],
+              });
+            }
+          }
+        }
+        curX_BY += (charW + 1) * unifiedPixelSize;
+      });
+
+      // 4. Tile Dinamis (3 KALI LEBIH BANYAK TILE 3D MENONJOL RGB: 14 * 3 = 42)
       dynamicTiles = [];
       for (let i = 0; i < 42; i++) {
         dynamicTiles.push(new DynamicTile("protruding"));
@@ -778,9 +839,19 @@ export default function Home() {
         tile.draw(ctx, originX, originY, unifiedPixelSize, cx, cy, maxRadius);
       });
 
-      // --- Kotak 3D: fade-in di 1975, MELEBAR morph ke COMING SOON, ---
-      // --- fade-out hanya setelah COMING SOON selesai. ---
+      // --- Kotak 3D: fade-in di 1975, morph SELESAI sebelum teks ---
+      // --- berikutnya muncul, fade-out hanya setelah BY selesai. ---
       {
+        const lerpBox = (a: Box, b: Box, t: number): Box => {
+          const e = t * t * (3 - 2 * t); // smoothstep biar melebarnya halus
+          return {
+            x: a.x + (b.x - a.x) * e,
+            y: a.y + (b.y - a.y) * e,
+            w: a.w + (b.w - a.w) * e,
+            h: a.h + (b.h - a.h) * e,
+          };
+        };
+
         let morphBox: Box | null = null;
         let morphAlpha = 0;
         let morphDepth = 1;
@@ -794,28 +865,37 @@ export default function Home() {
           morphBox = box1975;
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_CS_HOLD) {
-          // Jendela morph: 1975 vanish -> jeda gelap -> CS appear.
-          // Box melebar/menyusut ngikutin ukuran teks tujuan.
-          const tRaw =
-            (elapsed - TIME_1975_VANISH) / (TIME_CS_HOLD - TIME_1975_VANISH);
-          const t = Math.min(1, Math.max(0, tRaw));
-          const e = t * t * (3 - 2 * t); // smoothstep biar melebarnya halus
-          morphBox = {
-            x: box1975.x + (boxCS.x - box1975.x) * e,
-            y: box1975.y + (boxCS.y - box1975.y) * e,
-            w: box1975.w + (boxCS.w - box1975.w) * e,
-            h: box1975.h + (boxCS.h - box1975.h) * e,
-          };
+        } else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_CS_START) {
+          // Jendela morph 1: 1975 vanish -> jeda gelap.
+          // Selesai TEPAT saat jeda berakhir, baru teks CS muncul.
+          const t = Math.min(
+            1,
+            Math.max(0, (elapsed - TIME_1975_VANISH) / (TIME_CS_START - TIME_1975_VANISH))
+          );
+          morphBox = lerpBox(box1975, boxCS, t);
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
+        } else if (elapsed >= TIME_CS_START && elapsed < TIME_CS_VANISH) {
           morphBox = boxCS;
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_CS_END) {
-          const p = (elapsed - TIME_CS_VANISH) / T_CS_VANISH;
-          morphBox = boxCS;
+        } else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_BY_START) {
+          // Jendela morph 2: CS vanish -> jeda gelap.
+          // Selesai tepat sebelum teks BY muncul.
+          const t = Math.min(
+            1,
+            Math.max(0, (elapsed - TIME_CS_VANISH) / (TIME_BY_START - TIME_CS_VANISH))
+          );
+          morphBox = lerpBox(boxCS, boxBY, t);
+          morphAlpha = 1;
+          morphDepth = 1;
+        } else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_VANISH) {
+          morphBox = boxBY;
+          morphAlpha = 1;
+          morphDepth = 1;
+        } else if (elapsed >= TIME_BY_VANISH && elapsed < TIME_BY_END) {
+          const p = (elapsed - TIME_BY_VANISH) / T_BY_VANISH;
+          morphBox = boxBY;
           morphAlpha = Math.max(0, 1 - p * 1.1);
           morphDepth = Math.max(0.25, 1 - p * 0.7);
         }
@@ -827,11 +907,6 @@ export default function Home() {
       // FASE 1: TEKS PIXEL "1975"
       // =========================================================================
       if (elapsed < TIME_1975_END) {
-        subContainer.classList.remove("active");
-        subCreditEl.classList.remove("vanishing-red");
-        subCreditEl.style.opacity = "1";
-        subtextTriggered = false;
-
         // 1. Muncul RGB
         if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
           const progress = (elapsed - TIME_1975_START) / T_1975_APPEAR;
@@ -880,9 +955,6 @@ export default function Home() {
       else if (elapsed >= TIME_CS_START && elapsed < TIME_CS_END) {
         // 1. Muncul Pixel RGB
         if (elapsed < TIME_CS_HOLD) {
-          subCreditEl.classList.remove("vanishing-red");
-          subCreditEl.style.opacity = "1";
-
           const progress = (elapsed - TIME_CS_START) / T_CS_APPEAR;
           pixelsCS.forEach((p) => {
             if (progress < p.appearTime) return;
@@ -900,13 +972,6 @@ export default function Home() {
               drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
             }
           });
-
-          // Mulai dekripsi subteks pixel tipis
-          if (progress > 0.65 && !subtextTriggered) {
-            subtextTriggered = true;
-            subContainer.classList.add("active");
-            subScrambler.start("1975.lol owned by femaandara", 2.2, 5);
-          }
         }
         // 2. Diam Putih Glow
         else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
@@ -928,18 +993,53 @@ export default function Home() {
               drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
             }
           });
-
-          subCreditEl.classList.add("vanishing-red");
-          if (Math.random() < 0.42) {
-            subCreditEl.style.opacity = "0";
-          } else {
-            subCreditEl.style.opacity = String(Math.max(0, 1 - progress * 1.25));
-          }
         }
+      }
 
-        subScrambler.update();
-      } else {
-        subContainer.classList.remove("active");
+      // =========================================================================
+      // FASE 3: TEKS PIXEL "BY FEMAANDARA"
+      // =========================================================================
+      else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_END) {
+        // 1. Muncul RGB
+        if (elapsed >= TIME_BY_START && elapsed < TIME_BY_HOLD) {
+          const progress = (elapsed - TIME_BY_START) / T_BY_APPEAR;
+          pixelsBY.forEach((p) => {
+            if (progress < p.appearTime) return;
+            const timeSince = progress - p.appearTime;
+
+            if (timeSince < 0.24) {
+              if (Math.random() < 0.52) {
+                const dynamicColor =
+                  Math.random() < 0.35
+                    ? RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)]
+                    : p.rgbColor;
+                drawRgbPixel(p.baseX, p.baseY, unifiedPixelSize, dynamicColor);
+              }
+            } else {
+              drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+            }
+          });
+        }
+        // 2. Diam Putih Glow
+        else if (elapsed >= TIME_BY_HOLD && elapsed < TIME_BY_VANISH) {
+          pixelsBY.forEach((p) => {
+            drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+          });
+        }
+        // 3. Keluar Merah
+        else if (elapsed >= TIME_BY_VANISH && elapsed < TIME_BY_END) {
+          const progress = (elapsed - TIME_BY_VANISH) / T_BY_VANISH;
+          pixelsBY.forEach((p) => {
+            if (progress > p.disappearTime + 0.24) return;
+            if (progress > p.disappearTime) {
+              if (Math.random() < 0.52) {
+                drawRedGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+              }
+            } else {
+              drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+            }
+          });
+        }
       }
 
       rafId = requestAnimationFrame(render);
@@ -954,12 +1054,5 @@ export default function Home() {
     };
   }, []);
 
-  return (
-    <>
-      <canvas ref={canvasRef} className="stage-canvas" />
-      <div ref={subContainerRef} className="subtext-container">
-        <div ref={subCreditRef} className="sub-credit" />
-      </div>
-    </>
-  );
+  return <canvas ref={canvasRef} className="stage-canvas" />;
 }

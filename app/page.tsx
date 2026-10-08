@@ -459,6 +459,7 @@ export default function Home() {
     const T_GAP_2 = 1000; // Jeda gelap + morph box ke BY FEMA
     const T_BY_APPEAR = 1900; // BY FEMA Pixel RGB kedip
     const T_BY_HOLD = 3000; // BY FEMA Putih glow
+    const T_BY_TAIL = 900; // Nafas: BY diam penuh sebelum larut + mengecil
     const T_LOOPBACK = 1500; // BY larut -> 1975 larut masuk + box mengecil (loop, tanpa hilang)
 
     const TIME_1975_START = 0;
@@ -474,8 +475,9 @@ export default function Home() {
     const TIME_BY_START = TIME_CS_END + T_GAP_2;
     const TIME_BY_HOLD = TIME_BY_START + T_BY_APPEAR;
     const TIME_BY_END = TIME_BY_HOLD + T_BY_HOLD;
+    const TIME_BY_TAIL = TIME_BY_END + T_BY_TAIL;
 
-    const TIME_LOOP_END = TIME_BY_END + T_LOOPBACK;
+    const TIME_LOOP_END = TIME_BY_TAIL + T_LOOPBACK;
 
     const TOTAL_CYCLE = TIME_LOOP_END;
 
@@ -1072,13 +1074,13 @@ export default function Home() {
           morphBox = lerpBox(boxCS, boxBY, t);
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_END) {
+        } else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_TAIL) {
           morphBox = boxBY;
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_BY_END && elapsed < TIME_LOOP_END) {
+        } else if (elapsed >= TIME_BY_TAIL && elapsed < TIME_LOOP_END) {
           // Loop-back: box mengecil kembali ke ukuran 1975 (tanpa fade)
-          const q = (elapsed - TIME_BY_END) / T_LOOPBACK;
+          const q = (elapsed - TIME_BY_TAIL) / T_LOOPBACK;
           morphBox = lerpBox(boxBY, box1975, Math.min(1, q * 1.1));
           morphAlpha = 1;
           morphDepth = 1;
@@ -1247,7 +1249,7 @@ export default function Home() {
           });
         }
         // 2. Diam Putih Glow sampai loop-back (tidak ada merah/hilang)
-        else if (elapsed >= TIME_BY_HOLD && elapsed < TIME_BY_END) {
+        else if (elapsed >= TIME_BY_HOLD && elapsed < TIME_BY_TAIL) {
           pixelsBY.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
           });
@@ -1255,8 +1257,8 @@ export default function Home() {
       }
 
       // LOOP-BACK: BY larut acak -> 1975 larut masuk (putih, tanpa merah)
-      else if (elapsed >= TIME_BY_END && elapsed < TIME_LOOP_END) {
-        const q = (elapsed - TIME_BY_END) / T_LOOPBACK;
+      else if (elapsed >= TIME_BY_TAIL && elapsed < TIME_LOOP_END) {
+        const q = (elapsed - TIME_BY_TAIL) / T_LOOPBACK;
         pixelsBY.forEach((p) => {
           if (Math.random() < Math.max(0, 1 - q * 2))
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);

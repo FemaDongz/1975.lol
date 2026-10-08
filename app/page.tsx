@@ -778,6 +778,51 @@ export default function Home() {
         tile.draw(ctx, originX, originY, unifiedPixelSize, cx, cy, maxRadius);
       });
 
+      // --- Kotak 3D: fade-in di 1975, MELEBAR morph ke COMING SOON, ---
+      // --- fade-out hanya setelah COMING SOON selesai. ---
+      {
+        let morphBox: Box | null = null;
+        let morphAlpha = 0;
+        let morphDepth = 1;
+
+        if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
+          const p = (elapsed - TIME_1975_START) / T_1975_APPEAR;
+          morphBox = box1975;
+          morphAlpha = Math.min(1, 0.15 + p * 1.5);
+          morphDepth = Math.min(1, p * 1.4);
+        } else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_VANISH) {
+          morphBox = box1975;
+          morphAlpha = 1;
+          morphDepth = 1;
+        } else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_CS_HOLD) {
+          // Jendela morph: 1975 vanish -> jeda gelap -> CS appear.
+          // Box melebar/menyusut ngikutin ukuran teks tujuan.
+          const tRaw =
+            (elapsed - TIME_1975_VANISH) / (TIME_CS_HOLD - TIME_1975_VANISH);
+          const t = Math.min(1, Math.max(0, tRaw));
+          const e = t * t * (3 - 2 * t); // smoothstep biar melebarnya halus
+          morphBox = {
+            x: box1975.x + (boxCS.x - box1975.x) * e,
+            y: box1975.y + (boxCS.y - box1975.y) * e,
+            w: box1975.w + (boxCS.w - box1975.w) * e,
+            h: box1975.h + (boxCS.h - box1975.h) * e,
+          };
+          morphAlpha = 1;
+          morphDepth = 1;
+        } else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
+          morphBox = boxCS;
+          morphAlpha = 1;
+          morphDepth = 1;
+        } else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_CS_END) {
+          const p = (elapsed - TIME_CS_VANISH) / T_CS_VANISH;
+          morphBox = boxCS;
+          morphAlpha = Math.max(0, 1 - p * 1.1);
+          morphDepth = Math.max(0.25, 1 - p * 0.7);
+        }
+
+        if (morphBox) drawPixelBox(morphBox, morphAlpha, morphDepth);
+      }
+
       // =========================================================================
       // FASE 1: TEKS PIXEL "1975"
       // =========================================================================
@@ -790,12 +835,6 @@ export default function Home() {
         // 1. Muncul RGB
         if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
           const progress = (elapsed - TIME_1975_START) / T_1975_APPEAR;
-          // Box transisi masuk duluan, pixel muncul dari dalamnya
-          drawPixelBox(
-            box1975,
-            Math.min(1, 0.15 + progress * 1.5),
-            Math.min(1, progress * 1.4)
-          );
           pixels1975.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -815,7 +854,6 @@ export default function Home() {
         }
         // 2. Diam Putih Glow
         else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_VANISH) {
-          drawPixelBox(box1975, 1, 1);
           pixels1975.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
           });
@@ -823,11 +861,6 @@ export default function Home() {
         // 3. Keluar Merah
         else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_1975_END) {
           const progress = (elapsed - TIME_1975_VANISH) / T_1975_VANISH;
-          drawPixelBox(
-            box1975,
-            Math.max(0, 1 - progress * 1.1),
-            Math.max(0.25, 1 - progress * 0.7)
-          );
           pixels1975.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {
@@ -851,11 +884,6 @@ export default function Home() {
           subCreditEl.style.opacity = "1";
 
           const progress = (elapsed - TIME_CS_START) / T_CS_APPEAR;
-          drawPixelBox(
-            boxCS,
-            Math.min(1, 0.15 + progress * 1.5),
-            Math.min(1, progress * 1.4)
-          );
           pixelsCS.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -882,7 +910,6 @@ export default function Home() {
         }
         // 2. Diam Putih Glow
         else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
-          drawPixelBox(boxCS, 1, 1);
           pixelsCS.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
           });
@@ -891,11 +918,6 @@ export default function Home() {
         else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_CS_END) {
           const progress = (elapsed - TIME_CS_VANISH) / T_CS_VANISH;
 
-          drawPixelBox(
-            boxCS,
-            Math.max(0, 1 - progress * 1.1),
-            Math.max(0.25, 1 - progress * 0.7)
-          );
           pixelsCS.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {

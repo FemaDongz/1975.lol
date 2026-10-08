@@ -1225,9 +1225,9 @@ export default function Home() {
       }
 
       // =========================================================================
-      // FASE 3: TEKS PIXEL "BY FEMA"
+      // FASE 3: TEKS PIXEL "BY FEMA" (putih solid sampai ekor nafas)
       // =========================================================================
-      else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_END) {
+      else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_TAIL) {
         // 1. Muncul RGB
         if (elapsed >= TIME_BY_START && elapsed < TIME_BY_HOLD) {
           const progress = (elapsed - TIME_BY_START) / T_BY_APPEAR;

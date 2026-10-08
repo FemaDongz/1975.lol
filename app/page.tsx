@@ -457,12 +457,11 @@ export default function Home() {
     const T_CS_HOLD = 3800;
     const T_CS_VANISH = 1800;
     const T_GAP_2 = 1000; // Jeda gelap + morph box ke BY FEMA
-    const T_BY_APPEAR = 1900; // BY FEMAANDARA Pixel RGB kedip
-    const T_BY_HOLD = 3000; // BY FEMAANDARA Putih glow
-    const T_BY_VANISH = 1800; // BY FEMAANDARA Merah kedip keluar
-    const T_END_DELAY = 1200;
+    const T_BY_APPEAR = 1900; // BY FEMA Pixel RGB kedip
+    const T_BY_HOLD = 3000; // BY FEMA Putih glow
+    const T_LOOPBACK = 1500; // BY larut -> 1975 larut masuk + box mengecil (loop, tanpa hilang)
 
-    const TIME_1975_START = T_INITIAL_DELAY;
+    const TIME_1975_START = 0;
     const TIME_1975_HOLD = TIME_1975_START + T_1975_APPEAR;
     const TIME_1975_VANISH = TIME_1975_HOLD + T_1975_HOLD;
     const TIME_1975_END = TIME_1975_VANISH + T_1975_VANISH;
@@ -474,10 +473,11 @@ export default function Home() {
 
     const TIME_BY_START = TIME_CS_END + T_GAP_2;
     const TIME_BY_HOLD = TIME_BY_START + T_BY_APPEAR;
-    const TIME_BY_VANISH = TIME_BY_HOLD + T_BY_HOLD;
-    const TIME_BY_END = TIME_BY_VANISH + T_BY_VANISH;
+    const TIME_BY_END = TIME_BY_HOLD + T_BY_HOLD;
 
-    const TOTAL_CYCLE = TIME_BY_END + T_END_DELAY;
+    const TIME_LOOP_END = TIME_BY_END + T_LOOPBACK;
+
+    const TOTAL_CYCLE = TIME_LOOP_END;
 
     let startTime: number | null = null;
     let lastTimestamp = 0;
@@ -559,7 +559,7 @@ export default function Home() {
 
       // Responsif HP & Desktop (pakai teks terlebar biar semua muat)
       const isMobile = canvas.width < 500;
-      const maxColsWidth = canvas.width * (isMobile ? 0.94 : 0.84);
+      const maxColsWidth = canvas.width * (isMobile ? 0.86 : 0.78);
       const maxColsHeight = canvas.height * (isMobile ? 0.26 : 0.36);
 
       const baseSize = Math.min(
@@ -990,12 +990,16 @@ export default function Home() {
     }
 
     function render(timestamp: number) {
-      if (!startTime) startTime = timestamp;
+      // Jeda gelap awal hanya saat pertama buka browser (loop berikutnya mulus)
+      if (!startTime) startTime = timestamp + T_INITIAL_DELAY;
       if (!lastTimestamp) lastTimestamp = timestamp;
       const dt = timestamp - lastTimestamp;
       lastTimestamp = timestamp;
 
-      const elapsed = (timestamp - startTime) % TOTAL_CYCLE;
+      const raw = timestamp - startTime;
+      // Boot (negatif): grid + tile + tombol saja, teks/box diam
+      const elapsed = raw < 0 ? -1 : raw % TOTAL_CYCLE;
+      const firstCycle = raw < TOTAL_CYCLE;
 
       ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1037,8 +1041,9 @@ export default function Home() {
         if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
           const p = (elapsed - TIME_1975_START) / T_1975_APPEAR;
           morphBox = box1975;
-          morphAlpha = Math.min(1, 0.15 + p * 1.5);
-          morphDepth = Math.min(1, p * 1.4);
+          // Fade-in box hanya di loop pertama; loop berikutnya box sudah ada
+          morphAlpha = firstCycle ? Math.min(1, 0.15 + p * 1.5) : 1;
+          morphDepth = firstCycle ? Math.min(1, p * 1.4) : 1;
         } else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_END) {
           // Hold + vanish merah: box diam di ukuran 1975
           morphBox = box1975;
@@ -1067,15 +1072,16 @@ export default function Home() {
           morphBox = lerpBox(boxCS, boxBY, t);
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_VANISH) {
+        } else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_END) {
           morphBox = boxBY;
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_BY_VANISH && elapsed < TIME_BY_END) {
-          const p = (elapsed - TIME_BY_VANISH) / T_BY_VANISH;
-          morphBox = boxBY;
-          morphAlpha = Math.max(0, 1 - p * 1.1);
-          morphDepth = Math.max(0.25, 1 - p * 0.7);
+        } else if (elapsed >= TIME_BY_END && elapsed < TIME_LOOP_END) {
+          // Loop-back: box mengecil kembali ke ukuran 1975 (tanpa fade)
+          const q = (elapsed - TIME_BY_END) / T_LOOPBACK;
+          morphBox = lerpBox(boxBY, box1975, Math.min(1, q * 1.1));
+          morphAlpha = 1;
+          morphDepth = 1;
         }
 
         if (morphBox) drawPixelBox(morphBox, morphAlpha, morphDepth);
@@ -1201,7 +1207,7 @@ export default function Home() {
       }
 
       // =========================================================================
-      // FASE 3: TEKS PIXEL "BY FEMAANDARA"
+      // FASE 3: TEKS PIXEL "BY FEMA"
       // =========================================================================
       else if (elapsed >= TIME_BY_START && elapsed < TIME_BY_END) {
         // 1. Muncul RGB
@@ -1224,26 +1230,25 @@ export default function Home() {
             }
           });
         }
-        // 2. Diam Putih Glow
-        else if (elapsed >= TIME_BY_HOLD && elapsed < TIME_BY_VANISH) {
+        // 2. Diam Putih Glow sampai loop-back (tidak ada merah/hilang)
+        else if (elapsed >= TIME_BY_HOLD && elapsed < TIME_BY_END) {
           pixelsBY.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
           });
         }
-        // 3. Keluar Merah
-        else if (elapsed >= TIME_BY_VANISH && elapsed < TIME_BY_END) {
-          const progress = (elapsed - TIME_BY_VANISH) / T_BY_VANISH;
-          pixelsBY.forEach((p) => {
-            if (progress > p.disappearTime + 0.24) return;
-            if (progress > p.disappearTime) {
-              if (Math.random() < 0.52) {
-                drawRedGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
-              }
-            } else {
-              drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
-            }
-          });
-        }
+      }
+
+      // LOOP-BACK: BY larut acak -> 1975 larut masuk (putih, tanpa merah)
+      else if (elapsed >= TIME_BY_END && elapsed < TIME_LOOP_END) {
+        const q = (elapsed - TIME_BY_END) / T_LOOPBACK;
+        pixelsBY.forEach((p) => {
+          if (Math.random() < Math.max(0, 1 - q * 2))
+            drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+        });
+        pixels1975.forEach((p) => {
+          if (Math.random() < Math.max(0, q * 2 - 1))
+            drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+        });
       }
 
       rafId = requestAnimationFrame(render);

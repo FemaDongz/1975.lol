@@ -460,7 +460,7 @@ export default function Home() {
     const T_BY_APPEAR = 1900; // BY FEMA Pixel RGB kedip
     const T_BY_HOLD = 3000; // BY FEMA Putih glow
     const T_BY_TAIL = 900; // Nafas: BY diam penuh sebelum larut + mengecil
-    const T_LOOPBACK = 1500; // BY larut -> 1975 larut masuk + box mengecil (loop, tanpa hilang)
+    const T_LOOPBACK = 2100; // 3 tahap: BY larut -> box mengecil -> 1975 larut masuk
 
     const TIME_1975_START = 0;
     const TIME_1975_HOLD = TIME_1975_START + T_1975_APPEAR;
@@ -1079,9 +1079,11 @@ export default function Home() {
           morphAlpha = 1;
           morphDepth = 1;
         } else if (elapsed >= TIME_BY_TAIL && elapsed < TIME_LOOP_END) {
-          // Loop-back: box mengecil kembali ke ukuran 1975 (tanpa fade)
+          // Loop-back tahap 2/3: box mengecil setelah BY larut (tahap 1),
+          // sebelum 1975 larut masuk (tahap 3)
           const q = (elapsed - TIME_BY_TAIL) / T_LOOPBACK;
-          morphBox = lerpBox(boxBY, box1975, Math.min(1, q * 1.1));
+          const qb = Math.min(1, Math.max(0, (q - 0.35) / 0.3));
+          morphBox = lerpBox(boxBY, box1975, qb);
           morphAlpha = 1;
           morphDepth = 1;
         }
@@ -1256,15 +1258,18 @@ export default function Home() {
         }
       }
 
-      // LOOP-BACK: BY larut acak -> 1975 larut masuk (putih, tanpa merah)
+      // LOOP-BACK 3 tahap (putih, tanpa merah):
+      // 1) BY larut acak -> 2) box diam -> 3) 1975 larut masuk
       else if (elapsed >= TIME_BY_TAIL && elapsed < TIME_LOOP_END) {
         const q = (elapsed - TIME_BY_TAIL) / T_LOOPBACK;
+        const outP = Math.max(0, 1 - q / 0.35);
         pixelsBY.forEach((p) => {
-          if (Math.random() < Math.max(0, 1 - q * 2))
+          if (Math.random() < outP)
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
         });
+        const inP = Math.min(1, Math.max(0, (q - 0.65) / 0.35));
         pixels1975.forEach((p) => {
-          if (Math.random() < Math.max(0, q * 2 - 1))
+          if (Math.random() < inP)
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
         });
       }

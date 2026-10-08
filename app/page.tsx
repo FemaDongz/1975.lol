@@ -250,6 +250,8 @@ class TextScrambler {
 
 type TileType = "protruding" | "sunken";
 
+type Box = { x: number; y: number; w: number; h: number };
+
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const subContainerRef = useRef<HTMLDivElement>(null);
@@ -270,6 +272,8 @@ export default function Home() {
     let unifiedPixelSize = 8;
     let pixels1975: Pixel[] = [];
     let pixelsCS: Pixel[] = [];
+    let box1975: Box = { x: 0, y: 0, w: 0, h: 0 };
+    let boxCS: Box = { x: 0, y: 0, w: 0, h: 0 };
 
     // --- CLASS TILE 3D ACAK BERPINDAH (MENDALAM & MENONJOL) ---
     class DynamicTile {
@@ -491,6 +495,17 @@ export default function Home() {
           unifiedPixelSize +
         originY;
 
+      // Kotak 3D gelap pembungkus teks 1975 (snap ke grid background)
+      {
+        const pad = unifiedPixelSize * 2;
+        box1975 = {
+          x: startX1975 - pad,
+          y: startY1975 - pad,
+          w: totalWidth1975 + pad * 2,
+          h: 11 * unifiedPixelSize + pad * 2,
+        };
+      }
+
       let curX_1975 = startX1975;
       TEXT_1975.forEach((char) => {
         const matrix = GLYPHS_1975[char];
@@ -526,6 +541,17 @@ export default function Home() {
         ) *
           unifiedPixelSize +
         originY;
+
+      // Kotak 3D gelap pembungkus teks COMING SOON (snap ke grid background)
+      {
+        const pad = unifiedPixelSize * 2;
+        boxCS = {
+          x: startXCS - pad,
+          y: startYCS - pad,
+          w: totalWidthCS + pad * 2,
+          h: 9 * unifiedPixelSize + pad * 2,
+        };
+      }
 
       let curX_CS = startXCS;
       TEXT_CS.forEach((char) => {
@@ -616,6 +642,114 @@ export default function Home() {
       ctx.restore();
     }
 
+    // --- Kotak pixel 3D gelap (pemetaan) di belakang teks ---
+    // Grid dalam snap ke unifiedPixelSize + bevel sunken mirip grid dasar.
+    // alpha = transisi fade, depthT = transisi extrude 0 (rata) -> 1 (penuh).
+    function drawPixelBox(box: Box, alpha: number, depthT: number) {
+      if (box.w <= 0 || box.h <= 0 || alpha <= 0.01) return;
+      const step = unifiedPixelSize;
+      const fullDx = Math.min(36, Math.max(14, box.w * 0.055));
+      const fullDy = -Math.min(30, Math.max(12, box.h * 0.14));
+      const dx = fullDx * depthT;
+      const dy = fullDy * depthT;
+
+      const fx0 = box.x;
+      const fy0 = box.y;
+      const fx1 = box.x + box.w;
+      const fy1 = box.y + box.h;
+      const bx0 = fx0 + dx;
+      const by0 = fy0 + dy;
+      const bx1 = fx1 + dx;
+      const by1 = fy1 + dy;
+
+      ctx.save();
+      ctx.lineWidth = 1;
+
+      // Wajah belakang gelap
+      ctx.fillStyle = `rgba(10, 11, 18, ${(0.95 * alpha).toFixed(3)})`;
+      ctx.fillRect(bx0, by0, box.w, box.h);
+
+      // Dinding extrude atas & kanan
+      ctx.fillStyle = `rgba(24, 25, 36, ${(0.9 * alpha).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(fx0, fy0);
+      ctx.lineTo(bx0, by0);
+      ctx.lineTo(bx1, by0);
+      ctx.lineTo(fx1, fy0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = `rgba(18, 19, 28, ${(0.9 * alpha).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(fx1, fy0);
+      ctx.lineTo(bx1, by0);
+      ctx.lineTo(bx1, by1);
+      ctx.lineTo(fx1, fy1);
+      ctx.closePath();
+      ctx.fill();
+
+      // Rusuk penghubung depan-belakang (garis pemetaan)
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.16 * alpha).toFixed(3)})`;
+      const corners: Array<[number, number, number, number]> = [
+        [fx0, fy0, bx0, by0],
+        [fx1, fy0, bx1, by0],
+        [fx0, fy1, bx0, by1],
+        [fx1, fy1, bx1, by1],
+      ];
+      corners.forEach(([x0, y0, x1, y1]) => {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      });
+
+      // Bingkai belakang
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.1 * alpha).toFixed(3)})`;
+      ctx.strokeRect(bx0, by0, box.w, box.h);
+
+      // Badan depan gelap (pixel teks muncul dari atasnya)
+      ctx.fillStyle = `rgba(3, 3, 7, ${(0.85 * alpha).toFixed(3)})`;
+      ctx.fillRect(fx0, fy0, box.w, box.h);
+
+      // Grid dalam selaras grid background + bevel sunken
+      const darkA = `rgba(0, 0, 0, ${(0.9 * alpha).toFixed(3)})`;
+      const lightA = `rgba(255, 255, 255, ${(0.07 * alpha).toFixed(3)})`;
+      ctx.strokeStyle = darkA;
+      for (let gx = fx0; gx <= fx1 + 0.5; gx += step) {
+        ctx.beginPath();
+        ctx.moveTo(gx, fy0);
+        ctx.lineTo(gx, fy1);
+        ctx.stroke();
+      }
+      for (let gy = fy0; gy <= fy1 + 0.5; gy += step) {
+        ctx.beginPath();
+        ctx.moveTo(fx0, gy);
+        ctx.lineTo(fx1, gy);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = lightA;
+      for (let gx = fx0 + 1; gx <= fx1 + 0.5; gx += step) {
+        ctx.beginPath();
+        ctx.moveTo(gx, fy0);
+        ctx.lineTo(gx, fy1);
+        ctx.stroke();
+      }
+      for (let gy = fy0 + 1; gy <= fy1 + 0.5; gy += step) {
+        ctx.beginPath();
+        ctx.moveTo(fx0, gy);
+        ctx.lineTo(fx1, gy);
+        ctx.stroke();
+      }
+
+      // Bingkai depan + glow tipis
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 10 * alpha;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.25 * alpha).toFixed(3)})`;
+      ctx.strokeRect(fx0, fy0, box.w, box.h);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
+
     function render(timestamp: number) {
       if (!startTime) startTime = timestamp;
       if (!lastTimestamp) lastTimestamp = timestamp;
@@ -656,6 +790,12 @@ export default function Home() {
         // 1. Muncul RGB
         if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
           const progress = (elapsed - TIME_1975_START) / T_1975_APPEAR;
+          // Box transisi masuk duluan, pixel muncul dari dalamnya
+          drawPixelBox(
+            box1975,
+            Math.min(1, 0.15 + progress * 1.5),
+            Math.min(1, progress * 1.4)
+          );
           pixels1975.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -675,6 +815,7 @@ export default function Home() {
         }
         // 2. Diam Putih Glow
         else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_VANISH) {
+          drawPixelBox(box1975, 1, 1);
           pixels1975.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
           });
@@ -682,6 +823,11 @@ export default function Home() {
         // 3. Keluar Merah
         else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_1975_END) {
           const progress = (elapsed - TIME_1975_VANISH) / T_1975_VANISH;
+          drawPixelBox(
+            box1975,
+            Math.max(0, 1 - progress * 1.1),
+            Math.max(0.25, 1 - progress * 0.7)
+          );
           pixels1975.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {
@@ -705,6 +851,11 @@ export default function Home() {
           subCreditEl.style.opacity = "1";
 
           const progress = (elapsed - TIME_CS_START) / T_CS_APPEAR;
+          drawPixelBox(
+            boxCS,
+            Math.min(1, 0.15 + progress * 1.5),
+            Math.min(1, progress * 1.4)
+          );
           pixelsCS.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -731,6 +882,7 @@ export default function Home() {
         }
         // 2. Diam Putih Glow
         else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
+          drawPixelBox(boxCS, 1, 1);
           pixelsCS.forEach((p) => {
             drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
           });
@@ -739,6 +891,11 @@ export default function Home() {
         else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_CS_END) {
           const progress = (elapsed - TIME_CS_VANISH) / T_CS_VANISH;
 
+          drawPixelBox(
+            boxCS,
+            Math.max(0, 1 - progress * 1.1),
+            Math.max(0.25, 1 - progress * 0.7)
+          );
           pixelsCS.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {

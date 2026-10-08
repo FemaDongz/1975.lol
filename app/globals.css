@@ -28,10 +28,12 @@ canvas.stage-canvas {
   image-rendering: crisp-edges;
 }
 
-/* Overlay Subteks Pixel Tipis */
+/* Overlay Subteks Pixel Tipis (Responsif Mobile) */
 .subtext-container {
   position: absolute;
   z-index: 10;
+  width: 92vw;
+  max-width: 520px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -40,8 +42,6 @@ canvas.stage-canvas {
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
-  left: 50%;
-  transform: translateX(-50%);
 }
 
 .subtext-container.active {
@@ -50,13 +50,14 @@ canvas.stage-canvas {
 
 .sub-credit {
   font-family: 'Silkscreen', monospace;
-  font-size: clamp(12px, 1.3vw, 13px);
+  font-size: clamp(9px, 2.5vw, 13px);
   font-weight: 400;
-  letter-spacing: 0.22em;
+  letter-spacing: clamp(0.12em, 0.6vw, 0.22em);
   color: rgba(255, 255, 255, 0.85);
   text-transform: lowercase;
-  text-shadow: 0 0 12px rgb(255, 255, 255);
-  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+  white-space: normal;
+  word-break: break-word;
   min-height: 1.5em;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: grayscale;

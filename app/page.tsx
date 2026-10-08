@@ -147,6 +147,15 @@ const RGB_PALETTE = [
   "#0066ff",
 ];
 
+const ACCENT_COLORS = [
+  "#00f0ff",
+  "#a855f7",
+  "#ffaa00",
+  "#ff0077",
+  "#00ff66",
+  "#3b82f6",
+];
+
 type Pixel = {
   baseX: number;
   baseY: number;
@@ -162,6 +171,7 @@ type QueueItem = {
   char: string;
 };
 
+// --- DECRYPTOR SUBTEKS PIXEL ---
 class TextScrambler {
   el: HTMLElement;
   chars: string;
@@ -238,27 +248,124 @@ class TextScrambler {
   }
 }
 
+type TileType = "protruding" | "sunken";
+
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const subContainerRef = useRef<HTMLDivElement>(null);
   const subCreditRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const subContainer = subContainerRef.current;
-    const subCreditEl = subCreditRef.current;
-    if (!canvas || !subContainer || !subCreditEl) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const canvasEl = canvasRef.current;
+    const subContainerEl = subContainerRef.current;
+    const subCreditEl0 = subCreditRef.current;
+    if (!canvasEl || !subContainerEl || !subCreditEl0) return;
+    const canvas: HTMLCanvasElement = canvasEl;
+    const subContainer: HTMLDivElement = subContainerEl;
+    const subCreditEl: HTMLDivElement = subCreditEl0;
+    const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 
-    let pixelSize1975 = 10;
-    let pixelSizeCS = 8;
+    const bgGridCanvas = document.createElement("canvas");
+
+    let unifiedPixelSize = 8;
     let pixels1975: Pixel[] = [];
     let pixelsCS: Pixel[] = [];
 
-    type Box = { x: number; y: number; w: number; h: number };
-    let box1975: Box = { x: 0, y: 0, w: 0, h: 0 };
-    let boxCS: Box = { x: 0, y: 0, w: 0, h: 0 };
+    // --- CLASS TILE 3D ACAK BERPINDAH (MENDALAM & MENONJOL) ---
+    class DynamicTile {
+      type: TileType;
+      col = 0;
+      row = 0;
+      color = "#ffffff";
+      duration = 3000;
+      progress = 0;
+      maxAlpha = 0.3;
+
+      constructor(type: TileType) {
+        this.type = type;
+        this.reset();
+        this.progress = Math.random();
+      }
+
+      reset() {
+        const numCols = Math.ceil(canvas!.width / unifiedPixelSize);
+        const numRows = Math.ceil(canvas!.height / unifiedPixelSize);
+        this.col = Math.floor(Math.random() * numCols);
+        this.row = Math.floor(Math.random() * numRows);
+        this.color =
+          ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+        this.duration = 2400 + Math.random() * 3200;
+        this.progress = 0;
+        this.maxAlpha =
+          this.type === "protruding"
+            ? 0.28 + Math.random() * 0.35
+            : 0.55 + Math.random() * 0.3;
+      }
+
+      update(dt: number) {
+        this.progress += dt / this.duration;
+        if (this.progress >= 1) {
+          this.reset();
+        }
+      }
+
+      draw(
+        context: CanvasRenderingContext2D,
+        originX: number,
+        originY: number,
+        pSize: number,
+        cx: number,
+        cy: number,
+        maxRadius: number
+      ) {
+        const x = originX + this.col * pSize;
+        const y = originY + this.row * pSize;
+
+        const dist = Math.hypot(x + pSize / 2 - cx, y + pSize / 2 - cy);
+        if (dist > maxRadius) return;
+        const vigAlpha = Math.max(0, 1 - dist / maxRadius);
+
+        const curve = Math.sin(this.progress * Math.PI);
+        const alpha = curve * this.maxAlpha * vigAlpha;
+        if (alpha <= 0.015) return;
+
+        context.save();
+        context.globalAlpha = alpha;
+
+        if (this.type === "protruding") {
+          // === 3D MENONJOL (RAISED) + NEON GLOW WARNA-WARNI ===
+          context.shadowColor = this.color;
+          context.shadowBlur = pSize * 1.1;
+          context.fillStyle = this.color;
+          context.fillRect(x + 1, y + 1, pSize - 2, pSize - 2);
+
+          context.shadowBlur = 0;
+          context.fillStyle = "rgba(255, 255, 255, 0.65)";
+          context.fillRect(x + 1, y + 1, pSize - 2, 1);
+          context.fillRect(x + 1, y + 1, 1, pSize - 2);
+
+          context.fillStyle = "rgba(0, 0, 0, 0.85)";
+          context.fillRect(x + 1, y + pSize - 2, pSize - 2, 1);
+          context.fillRect(x + pSize - 2, y + 1, 1, pSize - 2);
+        } else {
+          // === 3D MENDALAM (SUNKEN CAVITY) - ABU-ABU / HITAM PEKAT ===
+          context.fillStyle = "#020306";
+          context.fillRect(x + 1, y + 1, pSize - 2, pSize - 2);
+
+          context.fillStyle = "rgba(0, 0, 0, 0.95)";
+          context.fillRect(x, y, pSize, 1.5);
+          context.fillRect(x, y, 1.5, pSize);
+
+          context.fillStyle = "rgba(255, 255, 255, 0.15)";
+          context.fillRect(x, y + pSize - 1, pSize, 1);
+          context.fillRect(x + pSize - 1, y, 1, pSize);
+        }
+
+        context.restore();
+      }
+    }
+
+    let dynamicTiles: DynamicTile[] = [];
 
     // Timeline Durasi
     const T_INITIAL_DELAY = 1500;
@@ -284,42 +391,107 @@ export default function Home() {
     const TOTAL_CYCLE = TIME_CS_END + T_END_DELAY;
 
     let startTime: number | null = null;
+    let lastTimestamp = 0;
     let subtextTriggered = false;
     let rafId = 0;
 
     const subScrambler = new TextScrambler(subCreditEl);
 
+    function getTotalCols1975() {
+      let cols = 0;
+      for (let i = 0; i < TEXT_1975.length; i++) {
+        cols += GLYPHS_1975[TEXT_1975[i]][0].length;
+        if (i < TEXT_1975.length - 1) cols += 2;
+      }
+      return cols;
+    }
+
+    function getTotalColsCS() {
+      let cols = 0;
+      for (let i = 0; i < TEXT_CS.length; i++) {
+        cols += GLYPHS_CS[TEXT_CS[i]][0].length;
+        if (i < TEXT_CS.length - 1) cols += 1;
+      }
+      return cols;
+    }
+
+    function render3DSunkenBaseGrid(pSize: number, originX: number, originY: number) {
+      bgGridCanvas.width = canvas!.width;
+      bgGridCanvas.height = canvas!.height;
+      const gCtx = bgGridCanvas.getContext("2d");
+      if (!gCtx) return;
+
+      gCtx.clearRect(0, 0, bgGridCanvas.width, bgGridCanvas.height);
+
+      for (let x = originX; x < bgGridCanvas.width + pSize; x += pSize) {
+        for (let y = originY; y < bgGridCanvas.height + pSize; y += pSize) {
+          gCtx.fillStyle = "rgba(6, 7, 12, 0.9)";
+          gCtx.fillRect(x + 1, y + 1, pSize - 2, pSize - 2);
+
+          gCtx.fillStyle = "rgba(0, 0, 0, 0.95)";
+          gCtx.fillRect(x, y, pSize, 1);
+          gCtx.fillRect(x, y, 1, pSize);
+
+          gCtx.fillStyle = "rgba(255, 255, 255, 0.06)";
+          gCtx.fillRect(x, y + pSize - 1, pSize, 1);
+          gCtx.fillRect(x + pSize - 1, y, 1, pSize);
+
+          gCtx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+          gCtx.strokeRect(x + 1.5, y + 1.5, pSize - 3, pSize - 3);
+        }
+      }
+
+      const cx = bgGridCanvas.width / 2;
+      const cy = bgGridCanvas.height / 2;
+      const maxRadius = Math.max(bgGridCanvas.width, bgGridCanvas.height) * 0.88;
+
+      const vignette = gCtx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius);
+      vignette.addColorStop(0, "rgba(0, 0, 0, 1)");
+      vignette.addColorStop(0.35, "rgba(0, 0, 0, 0.90)");
+      vignette.addColorStop(0.7, "rgba(0, 0, 0, 0.25)");
+      vignette.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+      gCtx.globalCompositeOperation = "destination-in";
+      gCtx.fillStyle = vignette;
+      gCtx.fillRect(0, 0, bgGridCanvas.width, bgGridCanvas.height);
+      gCtx.globalCompositeOperation = "source-over";
+    }
+
     function buildAllPixels() {
+      const totalCols1975 = getTotalCols1975();
+      const totalColsCS = getTotalColsCS();
+
+      // Responsif HP & Desktop
+      const isMobile = canvas.width < 500;
+      const maxColsWidth = canvas.width * (isMobile ? 0.94 : 0.84);
+      const maxColsHeight = canvas.height * (isMobile ? 0.26 : 0.36);
+
+      const baseSize = Math.min(maxColsWidth / totalColsCS, maxColsHeight / 11);
+
+      unifiedPixelSize = Math.max(3, Math.floor(baseSize));
+
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      let originX = cx % unifiedPixelSize;
+      while (originX > 0) originX -= unifiedPixelSize;
+
+      let originY = cy % unifiedPixelSize;
+      while (originY > 0) originY -= unifiedPixelSize;
+
       // 1. Matriks 1975
       pixels1975 = [];
-      let totalCols1975 = 0;
-      for (let i = 0; i < TEXT_1975.length; i++) {
-        totalCols1975 += GLYPHS_1975[TEXT_1975[i]][0].length;
-        if (i < TEXT_1975.length - 1) totalCols1975 += 2;
-      }
+      const totalWidth1975 = totalCols1975 * unifiedPixelSize;
+      const startX1975 =
+        Math.round((cx - totalWidth1975 / 2 - originX) / unifiedPixelSize) *
+          unifiedPixelSize +
+        originX;
+      const startY1975 =
+        Math.round((cy - (11 * unifiedPixelSize) / 2 - originY) / unifiedPixelSize) *
+          unifiedPixelSize +
+        originY;
 
-      const baseSize1975 = Math.min(
-        (canvas!.width * 0.72) / totalCols1975,
-        (canvas!.height * 0.44) / 11
-      );
-      pixelSize1975 = Math.max(5, Math.floor(baseSize1975 * (2 / 3)));
-
-      const totalWidth1975 = totalCols1975 * pixelSize1975;
-      const startX1975 = Math.floor((canvas!.width - totalWidth1975) / 2);
-      const startY1975 = Math.floor((canvas!.height - 11 * pixelSize1975) / 2);
-
-      // Kotak 3D gelap pembungkus teks 1975 (pixel seolah muncul dari dalamnya)
-      {
-        const pad = pixelSize1975 * 2.2;
-        box1975 = {
-          x: startX1975 - pad,
-          y: startY1975 - pad,
-          w: totalWidth1975 + pad * 2,
-          h: 11 * pixelSize1975 + pad * 2,
-        };
-      }
-
-      let curX = startX1975;
+      let curX_1975 = startX1975;
       TEXT_1975.forEach((char) => {
         const matrix = GLYPHS_1975[char];
         const charW = matrix[0].length;
@@ -327,8 +499,8 @@ export default function Home() {
           for (let c = 0; c < charW; c++) {
             if (matrix[r][c] === "█") {
               pixels1975.push({
-                baseX: curX + c * pixelSize1975,
-                baseY: startY1975 + r * pixelSize1975,
+                baseX: curX_1975 + c * unifiedPixelSize,
+                baseY: startY1975 + r * unifiedPixelSize,
                 appearTime: Math.random() * 0.76,
                 disappearTime: Math.random() * 0.76,
                 rgbColor:
@@ -337,37 +509,23 @@ export default function Home() {
             }
           }
         }
-        curX += (charW + 2) * pixelSize1975;
+        curX_1975 += (charW + 2) * unifiedPixelSize;
       });
 
       // 2. Matriks COMING SOON
       pixelsCS = [];
-      let totalColsCS = 0;
-      for (let i = 0; i < TEXT_CS.length; i++) {
-        totalColsCS += GLYPHS_CS[TEXT_CS[i]][0].length;
-        if (i < TEXT_CS.length - 1) totalColsCS += 1;
-      }
-
-      const baseSizeCS = Math.min(
-        (canvas!.width * 0.82) / totalColsCS,
-        (canvas!.height * 0.28) / 9
-      );
-      pixelSizeCS = Math.max(4, Math.floor(baseSizeCS));
-
-      const totalWidthCS = totalColsCS * pixelSizeCS;
-      const startXCS = Math.floor((canvas!.width - totalWidthCS) / 2);
-      const startYCS = Math.floor(canvas!.height / 2 - (9 * pixelSizeCS) / 2 - 25);
-
-      // Kotak 3D gelap pembungkus teks COMING SOON
-      {
-        const pad = pixelSizeCS * 2.2;
-        boxCS = {
-          x: startXCS - pad,
-          y: startYCS - pad,
-          w: totalWidthCS + pad * 2,
-          h: 9 * pixelSizeCS + pad * 2,
-        };
-      }
+      const totalWidthCS = totalColsCS * unifiedPixelSize;
+      const startXCS =
+        Math.round((cx - totalWidthCS / 2 - originX) / unifiedPixelSize) *
+          unifiedPixelSize +
+        originX;
+      const yOffsetCS = isMobile ? 18 : 26;
+      const startYCS =
+        Math.round(
+          (cy - (9 * unifiedPixelSize) / 2 - yOffsetCS - originY) / unifiedPixelSize
+        ) *
+          unifiedPixelSize +
+        originY;
 
       let curX_CS = startXCS;
       TEXT_CS.forEach((char) => {
@@ -377,8 +535,8 @@ export default function Home() {
           for (let c = 0; c < charW; c++) {
             if (matrix[r][c] === "█") {
               pixelsCS.push({
-                baseX: curX_CS + c * pixelSizeCS,
-                baseY: startYCS + r * pixelSizeCS,
+                baseX: curX_CS + c * unifiedPixelSize,
+                baseY: startYCS + r * unifiedPixelSize,
                 appearTime: Math.random() * 0.76,
                 disappearTime: Math.random() * 0.76,
                 rgbColor:
@@ -387,189 +545,117 @@ export default function Home() {
             }
           }
         }
-        curX_CS += (charW + 1) * pixelSizeCS;
+        curX_CS += (charW + 1) * unifiedPixelSize;
       });
 
-      const subY = startYCS + 9 * pixelSizeCS + 28;
-      subContainer!.style.top = `${subY}px`;
+      // Posisikan Subteks
+      const subY = startYCS + 9 * unifiedPixelSize + (isMobile ? 18 : 24);
+      subContainer.style.top = `${subY}px`;
+
+      // 3. Tile Dinamis (3 KALI LEBIH BANYAK TILE 3D MENONJOL RGB: 14 * 3 = 42)
+      dynamicTiles = [];
+      for (let i = 0; i < 42; i++) {
+        dynamicTiles.push(new DynamicTile("protruding"));
+      }
+      // Tile 3D mendalam abu-hitam
+      for (let i = 0; i < 12; i++) {
+        dynamicTiles.push(new DynamicTile("sunken"));
+      }
+
+      render3DSunkenBaseGrid(unifiedPixelSize, originX, originY);
     }
 
     function resize() {
-      canvas!.width = window.innerWidth;
-      canvas!.height = window.innerHeight;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       buildAllPixels();
     }
 
+    const handleOrientation = () => setTimeout(resize, 150);
     window.addEventListener("resize", resize);
+    window.addEventListener("orientationchange", handleOrientation);
     resize();
 
+    // Gambar Piksel Teks
     function drawRgbPixel(x: number, y: number, size: number, color: string) {
-      ctx!.save();
-      ctx!.shadowColor = color;
-      ctx!.shadowBlur = size * 1.5;
-      ctx!.fillStyle = color;
-      ctx!.fillRect(x, y, size, size);
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = size * 1.5;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, size, size);
 
-      ctx!.shadowBlur = size * 0.4;
-      ctx!.fillStyle = "#ffffff";
-      ctx!.fillRect(x, y, size, size);
-      ctx!.restore();
+      ctx.shadowBlur = size * 0.4;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x, y, size, size);
+      ctx.restore();
     }
 
     function drawWhiteGlowPixel(x: number, y: number, size: number) {
-      ctx!.save();
-      ctx!.shadowColor = "#ffffff";
-      ctx!.shadowBlur = size * 1.8;
-      ctx!.fillStyle = "rgba(255, 255, 255, 0.65)";
-      ctx!.fillRect(x, y, size, size);
+      ctx.save();
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = size * 1.8;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+      ctx.fillRect(x, y, size, size);
 
-      ctx!.shadowBlur = size * 0.5;
-      ctx!.fillStyle = "#ffffff";
-      ctx!.fillRect(x, y, size, size);
-      ctx!.restore();
+      ctx.shadowBlur = size * 0.5;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x, y, size, size);
+      ctx.restore();
     }
 
     function drawRedGlowPixel(x: number, y: number, size: number) {
-      ctx!.save();
-      ctx!.shadowColor = "#ff0033";
-      ctx!.shadowBlur = size * 1.2;
-      ctx!.fillStyle = "#ff0033";
-      ctx!.fillRect(x, y, size, size);
+      ctx.save();
+      ctx.shadowColor = "#ff0033";
+      ctx.shadowBlur = size * 1.2;
+      ctx.fillStyle = "#ff0033";
+      ctx.fillRect(x, y, size, size);
 
-      ctx!.shadowBlur = size * 0.3;
-      ctx!.fillStyle = "#ffffff";
-      ctx!.fillRect(x, y, size, size);
-      ctx!.restore();
-    }
-
-    // --- Kotak pixel 3D gelap (pemetaan) di belakang teks ---
-    // Pixel seolah muncul dari dalam box ini.
-    function drawPixelBox(box: Box, alphaScale = 1) {
-      if (box.w <= 0 || box.h <= 0) return;
-      const dx = Math.min(36, Math.max(14, box.w * 0.055));
-      const dy = -Math.min(30, Math.max(12, box.h * 0.14));
-
-      const fx0 = box.x;
-      const fy0 = box.y;
-      const fx1 = box.x + box.w;
-      const fy1 = box.y + box.h;
-      const bx0 = fx0 + dx;
-      const by0 = fy0 + dy;
-      const bx1 = fx1 + dx;
-      const by1 = fy1 + dy;
-
-      ctx!.save();
-      ctx!.lineWidth = 1;
-
-      // Sisi belakang (lebih terang sedikit biar berasa dalam)
-      ctx!.fillStyle = `rgba(16, 16, 24, ${(0.95 * alphaScale).toFixed(3)})`;
-      ctx!.fillRect(bx0, by0, box.w, box.h);
-
-      // Dinding sisi: atas & kanan (efek extrude 3D)
-      ctx!.fillStyle = `rgba(26, 26, 38, ${(0.9 * alphaScale).toFixed(3)})`;
-      ctx!.beginPath();
-      ctx!.moveTo(fx0, fy0);
-      ctx!.lineTo(bx0, by0);
-      ctx!.lineTo(bx1, by0);
-      ctx!.lineTo(fx1, fy0);
-      ctx!.closePath();
-      ctx!.fill();
-      ctx!.fillStyle = `rgba(20, 20, 30, ${(0.9 * alphaScale).toFixed(3)})`;
-      ctx!.beginPath();
-      ctx!.moveTo(fx1, fy0);
-      ctx!.lineTo(bx1, by0);
-      ctx!.lineTo(bx1, by1);
-      ctx!.lineTo(fx1, fy1);
-      ctx!.closePath();
-      ctx!.fill();
-
-      // Rusuk penghubung depan-belakang (garis pemetaan)
-      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.18 * alphaScale).toFixed(3)})`;
-      const corners: Array<[number, number, number, number]> = [
-        [fx0, fy0, bx0, by0],
-        [fx1, fy0, bx1, by0],
-        [fx0, fy1, bx0, by1],
-        [fx1, fy1, bx1, by1],
-      ];
-      corners.forEach(([x0, y0, x1, y1]) => {
-        ctx!.beginPath();
-        ctx!.moveTo(x0, y0);
-        ctx!.lineTo(x1, y1);
-        ctx!.stroke();
-      });
-
-      // Bingkai belakang
-      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.12 * alphaScale).toFixed(3)})`;
-      ctx!.strokeRect(bx0, by0, box.w, box.h);
-
-      // Badan depan gelap (tempat pixel muncul)
-      ctx!.fillStyle = `rgba(4, 4, 8, ${(0.82 * alphaScale).toFixed(3)})`;
-      ctx!.fillRect(fx0, fy0, box.w, box.h);
-
-      // Grid pemetaan samar di dalam box
-      const step = Math.max(18, Math.floor(box.w / 24));
-      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.05 * alphaScale).toFixed(3)})`;
-      for (let gx = fx0 + step; gx < fx1; gx += step) {
-        ctx!.beginPath();
-        ctx!.moveTo(gx, fy0);
-        ctx!.lineTo(gx, fy1);
-        ctx!.stroke();
-      }
-      for (let gy = fy0 + step; gy < fy1; gy += step) {
-        ctx!.beginPath();
-        ctx!.moveTo(fx0, gy);
-        ctx!.lineTo(fx1, gy);
-        ctx!.stroke();
-      }
-
-      // Bingkai depan + glow tipis
-      ctx!.shadowColor = "#ffffff";
-      ctx!.shadowBlur = 10 * alphaScale;
-      ctx!.strokeStyle = `rgba(255, 255, 255, ${(0.28 * alphaScale).toFixed(3)})`;
-      ctx!.strokeRect(fx0, fy0, box.w, box.h);
-      ctx!.shadowBlur = 0;
-
-      ctx!.restore();
-    }
-
-    // --- Vignette: gelapkan pinggiran layar ---
-    function drawVignette() {
-      const W = canvas!.width;
-      const H = canvas!.height;
-      const g = ctx!.createRadialGradient(
-        W / 2,
-        H / 2,
-        Math.min(W, H) * 0.32,
-        W / 2,
-        H / 2,
-        Math.max(W, H) * 0.72
-      );
-      g.addColorStop(0, "rgba(0, 0, 0, 0)");
-      g.addColorStop(0.6, "rgba(0, 0, 0, 0.28)");
-      g.addColorStop(1, "rgba(0, 0, 0, 0.78)");
-      ctx!.save();
-      ctx!.fillStyle = g;
-      ctx!.fillRect(0, 0, W, H);
-      ctx!.restore();
+      ctx.shadowBlur = size * 0.3;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x, y, size, size);
+      ctx.restore();
     }
 
     function render(timestamp: number) {
       if (!startTime) startTime = timestamp;
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const dt = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+
       const elapsed = (timestamp - startTime) % TOTAL_CYCLE;
 
-      ctx!.fillStyle = "#000000";
-      ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // 1. Grid Dasar 3D Mendalam (Abu/Hitam)
+      ctx.drawImage(bgGridCanvas, 0, 0);
+
+      // 2. Tile 3D Acak (42 Tile Menonjol RGB + 12 Tile Cekung Abu-Hitam)
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const maxRadius = Math.max(canvas.width, canvas.height) * 0.58;
+      let originX = cx % unifiedPixelSize;
+      while (originX > 0) originX -= unifiedPixelSize;
+      let originY = cy % unifiedPixelSize;
+      while (originY > 0) originY -= unifiedPixelSize;
+
+      dynamicTiles.forEach((tile) => {
+        tile.update(dt);
+        tile.draw(ctx, originX, originY, unifiedPixelSize, cx, cy, maxRadius);
+      });
+
+      // =========================================================================
+      // FASE 1: TEKS PIXEL "1975"
+      // =========================================================================
       if (elapsed < TIME_1975_END) {
-        subContainer!.classList.remove("active");
-        subCreditEl!.classList.remove("vanishing-red");
-        subCreditEl!.style.opacity = "1";
+        subContainer.classList.remove("active");
+        subCreditEl.classList.remove("vanishing-red");
+        subCreditEl.style.opacity = "1";
         subtextTriggered = false;
 
+        // 1. Muncul RGB
         if (elapsed >= TIME_1975_START && elapsed < TIME_1975_HOLD) {
           const progress = (elapsed - TIME_1975_START) / T_1975_APPEAR;
-          // Box memudar masuk duluan, pixel muncul dari dalamnya
-          drawPixelBox(box1975, Math.min(1, 0.2 + progress * 1.4));
           pixels1975.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -580,38 +666,45 @@ export default function Home() {
                   Math.random() < 0.35
                     ? RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)]
                     : p.rgbColor;
-                drawRgbPixel(p.baseX, p.baseY, pixelSize1975, dynamicColor);
+                drawRgbPixel(p.baseX, p.baseY, unifiedPixelSize, dynamicColor);
               }
             } else {
-              drawWhiteGlowPixel(p.baseX, p.baseY, pixelSize1975);
-            }
-          });
-        } else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_VANISH) {
-          drawPixelBox(box1975, 1);
-          pixels1975.forEach((p) => {
-            drawWhiteGlowPixel(p.baseX, p.baseY, pixelSize1975);
-          });
-        } else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_1975_END) {
-          const progress = (elapsed - TIME_1975_VANISH) / T_1975_VANISH;
-          drawPixelBox(box1975, Math.max(0.25, 1 - progress * 0.6));
-          pixels1975.forEach((p) => {
-            if (progress > p.disappearTime + 0.24) return;
-            if (progress > p.disappearTime) {
-              if (Math.random() < 0.52) {
-                drawRedGlowPixel(p.baseX, p.baseY, pixelSize1975);
-              }
-            } else {
-              drawWhiteGlowPixel(p.baseX, p.baseY, pixelSize1975);
+              drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
             }
           });
         }
-      } else if (elapsed >= TIME_CS_START && elapsed < TIME_CS_END) {
+        // 2. Diam Putih Glow
+        else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_VANISH) {
+          pixels1975.forEach((p) => {
+            drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+          });
+        }
+        // 3. Keluar Merah
+        else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_1975_END) {
+          const progress = (elapsed - TIME_1975_VANISH) / T_1975_VANISH;
+          pixels1975.forEach((p) => {
+            if (progress > p.disappearTime + 0.24) return;
+            if (progress > p.disappearTime) {
+              if (Math.random() < 0.52) {
+                drawRedGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+              }
+            } else {
+              drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
+            }
+          });
+        }
+      }
+
+      // =========================================================================
+      // FASE 2: TEKS PIXEL "COMING SOON" + SUBTEKS PIXEL TIPIS
+      // =========================================================================
+      else if (elapsed >= TIME_CS_START && elapsed < TIME_CS_END) {
+        // 1. Muncul Pixel RGB
         if (elapsed < TIME_CS_HOLD) {
-          subCreditEl!.classList.remove("vanishing-red");
-          subCreditEl!.style.opacity = "1";
+          subCreditEl.classList.remove("vanishing-red");
+          subCreditEl.style.opacity = "1";
 
           const progress = (elapsed - TIME_CS_START) / T_CS_APPEAR;
-          drawPixelBox(boxCS, Math.min(1, 0.2 + progress * 1.4));
           pixelsCS.forEach((p) => {
             if (progress < p.appearTime) return;
             const timeSince = progress - p.appearTime;
@@ -622,53 +715,53 @@ export default function Home() {
                   Math.random() < 0.35
                     ? RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)]
                     : p.rgbColor;
-                drawRgbPixel(p.baseX, p.baseY, pixelSizeCS, dynamicColor);
+                drawRgbPixel(p.baseX, p.baseY, unifiedPixelSize, dynamicColor);
               }
             } else {
-              drawWhiteGlowPixel(p.baseX, p.baseY, pixelSizeCS);
+              drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
             }
           });
 
+          // Mulai dekripsi subteks pixel tipis
           if (progress > 0.65 && !subtextTriggered) {
             subtextTriggered = true;
-            subContainer!.classList.add("active");
+            subContainer.classList.add("active");
             subScrambler.start("1975.lol owned by femaandara", 2.2, 5);
           }
-        } else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
-          drawPixelBox(boxCS, 1);
+        }
+        // 2. Diam Putih Glow
+        else if (elapsed >= TIME_CS_HOLD && elapsed < TIME_CS_VANISH) {
           pixelsCS.forEach((p) => {
-            drawWhiteGlowPixel(p.baseX, p.baseY, pixelSizeCS);
+            drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
           });
-        } else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_CS_END) {
+        }
+        // 3. Keluar KEDIP MERAH
+        else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_CS_END) {
           const progress = (elapsed - TIME_CS_VANISH) / T_CS_VANISH;
 
-          drawPixelBox(boxCS, Math.max(0.25, 1 - progress * 0.6));
           pixelsCS.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {
               if (Math.random() < 0.52) {
-                drawRedGlowPixel(p.baseX, p.baseY, pixelSizeCS);
+                drawRedGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
               }
             } else {
-              drawWhiteGlowPixel(p.baseX, p.baseY, pixelSizeCS);
+              drawWhiteGlowPixel(p.baseX, p.baseY, unifiedPixelSize);
             }
           });
 
-          subCreditEl!.classList.add("vanishing-red");
+          subCreditEl.classList.add("vanishing-red");
           if (Math.random() < 0.42) {
-            subCreditEl!.style.opacity = "0";
+            subCreditEl.style.opacity = "0";
           } else {
-            subCreditEl!.style.opacity = String(Math.max(0, 1 - progress * 1.25));
+            subCreditEl.style.opacity = String(Math.max(0, 1 - progress * 1.25));
           }
         }
 
         subScrambler.update();
       } else {
-        subContainer!.classList.remove("active");
+        subContainer.classList.remove("active");
       }
-
-      // Vignette di atas segalanya
-      drawVignette();
 
       rafId = requestAnimationFrame(render);
     }
@@ -678,6 +771,7 @@ export default function Home() {
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("orientationchange", handleOrientation);
     };
   }, []);
 

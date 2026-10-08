@@ -347,7 +347,7 @@ export default function Home() {
     let isPlaying = false;
     const btnRect = { x: 0, y: 0, w: 0, h: 0, visible: false };
     // Fase acak tiap sel border biar twinkle-nya lambat & tidak bareng
-    const twPhases: number[] = Array.from({ length: 128 }, () =>
+    const twPhases: number[] = Array.from({ length: 256 }, () =>
       Math.random() * Math.PI * 2
     );
 
@@ -965,7 +965,7 @@ export default function Home() {
 
       // Teks PLAY/STOP pixel, tengah rata (merah penuh saat mode STOP)
       const tx = bx + Math.floor((W - labelCols) / 2) * s;
-      const ty = by + 2 * s;
+      const ty = by + 3 * s;
       ctx.save();
       ctx.shadowColor = isPlaying ? "#ff3355" : "#ffffff";
       ctx.shadowBlur = hover ? 14 : 10;
@@ -1084,8 +1084,8 @@ export default function Home() {
             labelCols += GLYPHS_CS[ch][0].length;
             if (i < label.length - 1) labelCols += 1;
           });
-          const cellsW = 37; // muat PLAY (29 kol) + padding, STOP ikut tengah
-          const cellsH = 13;
+          const cellsW = labelCols + 12; // padding 6 sel tiap sisi: selalu simetris
+          const cellsH = 15; // padding 3 sel atas-bawah, lega
           const bw = cellsW * bs;
           let bxo = cx % bs;
           while (bxo > 0) bxo -= bs;

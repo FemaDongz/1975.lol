@@ -3,6 +3,7 @@
   padding: 0;
   box-sizing: border-box;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -26,6 +27,8 @@ canvas.stage-canvas {
   z-index: 1;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* Overlay Subteks Pixel Tipis (Responsif Mobile) */

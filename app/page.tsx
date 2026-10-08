@@ -366,11 +366,11 @@ export default function Home() {
     const T_1975_APPEAR = 1900;
     const T_1975_HOLD = 2500;
     const T_1975_VANISH = 1800;
-    const T_GAP_1 = 700;
+    const T_GAP_1 = 1000; // Jeda gelap + morph box ke COMING SOON
     const T_CS_APPEAR = 1900;
     const T_CS_HOLD = 3800;
     const T_CS_VANISH = 1800;
-    const T_GAP_2 = 700; // Jeda gelap ke BY FEMAANDARA
+    const T_GAP_2 = 1000; // Jeda gelap + morph box ke BY FEMA
     const T_BY_APPEAR = 1900; // BY FEMAANDARA Pixel RGB kedip
     const T_BY_HOLD = 3000; // BY FEMAANDARA Putih glow
     const T_BY_VANISH = 1800; // BY FEMAANDARA Merah kedip keluar
@@ -825,8 +825,8 @@ export default function Home() {
         tile.draw(ctx, originX, originY, unifiedPixelSize, cx, cy, maxRadius);
       });
 
-      // --- Kotak 3D: fade-in di 1975, morph SELESAI sebelum teks ---
-      // --- berikutnya muncul, fade-out hanya setelah BY selesai. ---
+      // --- Kotak 3D: fade-in di 1975, DIAM selama teks padam, ---
+      // --- morph HANYA pas jeda gelap, fade-out setelah BY selesai. ---
       {
         const lerpBox = (a: Box, b: Box, t: number): Box => {
           const e = t * t * (3 - 2 * t); // smoothstep biar melebarnya halus
@@ -847,30 +847,30 @@ export default function Home() {
           morphBox = box1975;
           morphAlpha = Math.min(1, 0.15 + p * 1.5);
           morphDepth = Math.min(1, p * 1.4);
-        } else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_VANISH) {
+        } else if (elapsed >= TIME_1975_HOLD && elapsed < TIME_1975_END) {
+          // Hold + vanish merah: box diam di ukuran 1975
           morphBox = box1975;
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_1975_VANISH && elapsed < TIME_CS_START) {
-          // Jendela morph 1: 1975 vanish -> jeda gelap.
-          // Selesai TEPAT saat jeda berakhir, baru teks CS muncul.
+        } else if (elapsed >= TIME_1975_END && elapsed < TIME_CS_START) {
+          // Jeda gelap 1: teks lama sudah hilang total, baru morph.
           const t = Math.min(
             1,
-            Math.max(0, (elapsed - TIME_1975_VANISH) / (TIME_CS_START - TIME_1975_VANISH))
+            Math.max(0, (elapsed - TIME_1975_END) / (TIME_CS_START - TIME_1975_END))
           );
           morphBox = lerpBox(box1975, boxCS, t);
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_CS_START && elapsed < TIME_CS_VANISH) {
+        } else if (elapsed >= TIME_CS_START && elapsed < TIME_CS_END) {
+          // Appear + hold + vanish merah CS: box diam di ukuran CS
           morphBox = boxCS;
           morphAlpha = 1;
           morphDepth = 1;
-        } else if (elapsed >= TIME_CS_VANISH && elapsed < TIME_BY_START) {
-          // Jendela morph 2: CS vanish -> jeda gelap.
-          // Selesai tepat sebelum teks BY muncul.
+        } else if (elapsed >= TIME_CS_END && elapsed < TIME_BY_START) {
+          // Jeda gelap 2: morph ke ukuran BY.
           const t = Math.min(
             1,
-            Math.max(0, (elapsed - TIME_CS_VANISH) / (TIME_BY_START - TIME_CS_VANISH))
+            Math.max(0, (elapsed - TIME_CS_END) / (TIME_BY_START - TIME_CS_END))
           );
           morphBox = lerpBox(boxCS, boxBY, t);
           morphAlpha = 1;

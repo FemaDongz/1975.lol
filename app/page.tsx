@@ -734,7 +734,8 @@ export default function Home() {
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", handleOrientation);
 
-    // Klik/hover tombol pixel
+    // Klik/hover tombol pixel (hover hanya perangkat mouse biar tak nyangkut di HP)
+    const canHover = window.matchMedia("(hover: hover)").matches;
     const inButton = (e: MouseEvent) => {
       if (!btnRect.visible) return false;
       const r = canvas.getBoundingClientRect();
@@ -751,11 +752,16 @@ export default function Home() {
       if (inButton(e)) togglePlay();
     };
     const onCanvasMove = (e: MouseEvent) => {
-      btnHover = inButton(e);
+      btnHover = canHover && inButton(e);
       canvas.style.cursor = btnHover ? "pointer" : "default";
+    };
+    const onTouchEnd = () => {
+      btnHover = false;
+      canvas.style.cursor = "default";
     };
     canvas.addEventListener("click", onCanvasClick);
     canvas.addEventListener("mousemove", onCanvasMove);
+    canvas.addEventListener("touchend", onTouchEnd);
     resize();
 
     // Gambar Piksel Teks
@@ -1251,6 +1257,7 @@ export default function Home() {
       window.removeEventListener("orientationchange", handleOrientation);
       canvas.removeEventListener("click", onCanvasClick);
       canvas.removeEventListener("mousemove", onCanvasMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
       audio.pause();
     };
   }, []);

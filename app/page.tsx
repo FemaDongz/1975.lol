@@ -927,23 +927,20 @@ export default function Home() {
       ctx.fillStyle = hover ? "rgba(12, 12, 22, 0.94)" : "rgba(4, 4, 8, 0.9)";
       ctx.fillRect(bx, by, W * s, H * s);
 
-      // Bingkai simetris + twinkle putih acak (tidak bareng)
-      const skip = new Set([
-        `0,0`,
-        `${W - 1},0`,
-        `0,${H - 1}`,
-        `${W - 1},${H - 1}`,
-      ]);
+      // Bingkai simetris TEBAL 2 sel + twinkle putih acak (tidak bareng)
+      const th = 2;
+      const inCut = (ix: number, iy: number) =>
+        (ix < th && iy < th) ||
+        (ix >= W - th && iy < th) ||
+        (ix < th && iy >= H - th) ||
+        (ix >= W - th && iy >= H - th);
       const frame: Array<[number, number]> = [];
-      for (let ix = 0; ix < W; ix++) {
-        if (!skip.has(`${ix},0`)) frame.push([bx + ix * s, by]);
-        if (!skip.has(`${ix},${H - 1}`))
-          frame.push([bx + ix * s, by + (H - 1) * s]);
-      }
-      for (let iy = 1; iy < H - 1; iy++) {
-        if (!skip.has(`0,${iy}`)) frame.push([bx, by + iy * s]);
-        if (!skip.has(`${W - 1},${iy}`))
-          frame.push([bx + (W - 1) * s, by + iy * s]);
+      for (let iy = 0; iy < H; iy++) {
+        for (let ix = 0; ix < W; ix++) {
+          const isEdge =
+            ix < th || ix >= W - th || iy < th || iy >= H - th;
+          if (isEdge && !inCut(ix, iy)) frame.push([bx + ix * s, by + iy * s]);
+        }
       }
       ctx.save();
       const edgeBase = isPlaying ? "255, 51, 85" : "255, 255, 255";
@@ -971,7 +968,7 @@ export default function Home() {
       const ty = by + 2 * s;
       ctx.save();
       ctx.shadowColor = isPlaying ? "#ff3355" : "#ffffff";
-      ctx.shadowBlur = isPlaying || hover ? 8 : 0;
+      ctx.shadowBlur = hover ? 14 : 10;
       ctx.fillStyle = isPlaying ? "#ff4d6a" : "#ffffff";
       let ox = tx;
       label.forEach((ch) => {

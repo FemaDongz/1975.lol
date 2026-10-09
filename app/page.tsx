@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from "react";
 import RawSketchBackground from "./RawSketchBackground";
-import Opening from "./Opening";
 
 export default function Home() {
   const [dark, setDark] = useState(false);
-  const [intro, setIntro] = useState(true);
-  const [introPaper, setIntroPaper] = useState("#f4f2ed");
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme");
@@ -26,8 +23,7 @@ export default function Home() {
   // ink (di terang jadi gelap, di gelap jadi terang) sambil tetap "nyatu".
   const ink = "#ffffff";
   // Warna polos di balik frame kontras dgn ripple: hitam di light, putih di dark.
-  // Selama intro, warna kertas dikendalikan animasi opening (putih <-> hitam).
-  const frameBg = intro ? introPaper : dark ? "#f4f2ed" : "#0a0a0c";
+  const frameBg = dark ? "#f4f2ed" : "#0a0a0c";
 
   return (
     <main
@@ -42,11 +38,7 @@ export default function Home() {
     >
       {/* Container ripple: ber-gap dari sisi (2px HP / 4px desktop) + rounded */}
       <div className="frame" style={{ background: frameBg }}>
-        {/* Angka opening di belakang ripple (ripple di atasnya menutupi) */}
-        {intro && (
-          <Opening onDone={() => setIntro(false)} onPaper={setIntroPaper} />
-        )}
-        <RawSketchBackground dark={intro ? introPaper !== "#f4f2ed" : dark} />
+        <RawSketchBackground dark={dark} />
 
           <div
             style={{
@@ -61,9 +53,7 @@ export default function Home() {
                 "clamp(24px, 4vw, 64px) clamp(24px, 4vw, 64px) max(clamp(24px, 4vw, 64px), calc(env(safe-area-inset-bottom, 0px) + 24px))",
               color: ink,
               mixBlendMode: "difference",
-              opacity: intro ? 0 : 1,
-              transition: "color 1s ease, opacity 1.2s ease",
-              pointerEvents: intro ? "none" : "auto",
+              transition: "color 1s ease",
             }}
           >
           <header

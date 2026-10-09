@@ -58,9 +58,10 @@ const FRAG = /* glsl */ `
     q.x = fbm(st + vec2(0.0, 0.0) + 0.1 * uTime);
     q.y = fbm(st + vec2(5.2, 1.3) + 0.3 * uTime);
 
-    // Ripple lembut tepat di kursor (radius kecil, sudut koordinat sama)
-    vec2 mouseDist = st - uMouse;
-    float distFactor = smoothstep(0.18, 0.0, length(mouseDist));
+    // Ripple lembut tepat di kursor.
+    // warp() dipanggil dgn st*3.0, jadi samakan skala koordinat mouse (×3).
+    vec2 mouseDist = st - uMouse * 3.0;
+    float distFactor = smoothstep(0.35, 0.0, length(mouseDist));
     q += distFactor * uVelocity * 0.6;
 
     r.x = fbm(st + 4.0 * q + vec2(1.7, 9.2) + 0.15 * uTime);
@@ -77,7 +78,6 @@ const FRAG = /* glsl */ `
 
     vec2 q, r;
     float pattern = warp(st * 3.0, q, r);
-
     float lines = sin(pattern * 20.0 + uTime * 0.5);
     float stroke = smoothstep(0.4, 0.5, lines) - smoothstep(0.5, 0.6, lines);
 

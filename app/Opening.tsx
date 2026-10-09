@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Opening: ANGKA gacha. Satu digit bergulir dari atas ke bawah (loop),
-// berhenti bertahap tiap 1 detik dari kiri ke kanan sampai "1975".
-// Background ripple tetap terlihat (overlay ini transparan). Tiap digit
-// berhenti, laporkan warna kertas baru (putih <-> hitam) ke page lewat
-// onPaper(). Final = hitam. Lalu onDone().
+// Opening: satu angka besar muncul satu per satu (gacha loop) sampai "1975".
+// Ditempatkan DI BELAKANG ripple, jadi garis ink menutupinya. Tiap angka
+// berhenti tiap 1 detik; warna kertas container ganti (putih<->hitam) via
+// onPaper(). Ukuran font disamakan dgn heading utama. Final = hitam.
 
 const TARGET = "1975";
 const STOP_MS = 1000;
@@ -20,31 +19,42 @@ export default function Opening({
   onDone: () => void;
   onPaper: (color: string) => void;
 }) {
-  const [paperIdx, setPaperIdx] = useState(0);
-  const [locked, setLocked] = useState(0);
-  const [spin, setSpin] = useState(0);
+  // index digit yang sedang ditampilkan (0..3). Satu digit saja sekaligus.
+  const [index, setIndex] = useState(0);
+  const [flip, setFlip] = useState(0); // angka acak yang bergulir
+  const [locked, setLocked] = useState(0); // sudah berapa digit berhenti
   const [fading, setFading] = useState(false);
   const doneRef = useRef(false);
 
-  useEffect(() => {
-    if (locked >= TARGET.length) return;
-    const id = setInterval(() => setSpin((s) => s + 1), 90);
-    return () => clearInterval(id);
-  }, [locked]);
+  const done = locked >= TARGET.length;
 
+  // Gacha loop: angka acak berganti cepat sampai semua terkunci.
   useEffect(() => {
-    if (locked >= TARGET.length) return;
+    if (done) return;
+    const id = setInterval(() => setFlip((f) => (f + 1) % 10), 80);
+    return () => clearInterval(id);
+  }, [done]);
+
+  // Tiap 1 detik: kunci digit sekarang, maju ke digit berikutnya + ganti kertas.
+  useEffect(() => {
+    if (done) return;
     const id = setTimeout(() => {
-      const next = Math.min(paperIdx + 1, PAPER.length - 1);
-      setPaperIdx(next);
-      setLocked((l) => l + 1);
-      onPaper(PAPER[next]);
+      const next = Math.min(locked + 1, TARGET.length);
+      setLocked(next);
+      setIndex(next); // tampilkan digit berikutnya (kalau belum habis)
+      setPaperIdxSafe(next);
     }, STOP_MS);
     return () => clearTimeout(id);
-  }, [locked, paperIdx, onPaper]);
+  }, [locked, done]);
 
+  const setPaperIdxSafe = (step: number) => {
+    const p = Math.min(step, PAPER.length - 1);
+    onPaper(PAPER[p]);
+  };
+
+  // Selesai -> fade -> onDone
   useEffect(() => {
-    if (locked < TARGET.length) return;
+    if (!done) return;
     const t1 = setTimeout(() => setFading(true), 700);
     const t2 = setTimeout(() => {
       if (!doneRef.current) {
@@ -56,10 +66,12 @@ export default function Opening({
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [locked, onDone]);
+  }, [done, onDone]);
 
-  const paper = PAPER[paperIdx];
-  const digitColor = paper === "#f4f2ed" ? "#0a0a0c" : "#f4f2ed";
+  // Digit yang ditampilkan: kalau digit ini masih "aktif" -> angka gacha.
+  const active = locked < TARGET.length ? index : TARGET.length - 1;
+  const isRolling = active >= locked;
+  const shown = isRolling ? DIGITS[flip] : TARGET[active];
 
   return (
     <div
@@ -67,7 +79,7 @@ export default function Opening({
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 50,
+        zIndex: 1, // di belakang ripple (ripple z=2), di atas warna frame
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -76,43 +88,19 @@ export default function Opening({
         pointerEvents: fading ? "none" : "auto",
       }}
     >
-      <div
+      <span
         style={{
-          display: "flex",
-          fontSize: "clamp(72px, 20vw, 260px)",
-          lineHeight: 1,
+          fontSize: "clamp(56px, 12vw, 180px)",
+          lineHeight: 0.8,
           fontWeight: 700,
-          letterSpacing: "-0.04em",
+          letterSpacing: "-0.05em",
           fontFamily: "var(--font-serif)",
-          color: digitColor,
-          transition: "color 1s ease",
+          color: "#808080",
           filter: "blur(0.6px)",
-          mixBlendMode: "difference",
         }}
       >
-        {TARGET.split("").map((target, i) => {
-          const stopped = i < locked;
-          const digit = stopped ? target : DIGITS[(i * 3 + spin) % 10];
-          return (
-            <span
-              key={i}
-              style={{
-                display: "inline-block",
-                width: "0.62em",
-                textAlign: "center",
-                opacity: stopped ? 1 : 0.75,
-                transform: stopped
-                  ? "translateY(0)"
-                  : `translateY(${((spin * 20) % 40) - 20}%)`,
-                filter: stopped ? "blur(0)" : "blur(1.4px)",
-                transition: "opacity 0.25s ease, filter 0.25s ease",
-              }}
-            >
-              {digit}
-            </span>
-          );
-        })}
-      </div>
+        {shown}
+      </span>
     </div>
   );
 }

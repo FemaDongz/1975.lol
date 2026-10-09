@@ -42,6 +42,10 @@ export default function Home() {
     >
       {/* Container ripple: ber-gap dari sisi (2px HP / 4px desktop) + rounded */}
       <div className="frame" style={{ background: frameBg }}>
+        {/* Angka opening di belakang ripple (ripple di atasnya menutupi) */}
+        {intro && (
+          <Opening onDone={() => setIntro(false)} onPaper={setIntroPaper} />
+        )}
         <RawSketchBackground dark={intro ? introPaper !== "#f4f2ed" : dark} />
 
           <div
@@ -164,10 +168,6 @@ export default function Home() {
           </footer>
         </div>
       </div>
-
-      {intro && (
-        <Opening onDone={() => setIntro(false)} onPaper={setIntroPaper} />
-      )}
     </main>
   );
 }

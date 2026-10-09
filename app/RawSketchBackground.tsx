@@ -59,12 +59,16 @@ const FRAG = /* glsl */ `
     q.x = fbm(st + vec2(0.0, 0.0) + 0.1 * uTime);
     q.y = fbm(st + vec2(5.2, 1.3) + 0.3 * uTime);
 
-    // Ripple lembut tepat di kursor.
+    // Distorsi kursor: radius KECIL (lingkaran kursor rapat) + kuat.
     // warp() dipanggil dgn st*3.0, jadi samakan skala koordinat mouse (×3).
-    // Radius lebar (0.9) + kekuatan lembut biar kalem.
     vec2 mouseDist = st - uMouse * 3.0;
-    float distFactor = smoothstep(0.9, 0.0, length(mouseDist));
-    q += distFactor * uVelocity * 0.35;
+    float distFactor = smoothstep(0.18, 0.0, length(mouseDist));
+    q += distFactor * uVelocity * 0.5;
+
+    // Ripple gelombang global di background: luas + pelan (bukan di kursor).
+    float bgRipple = sin(length(st) * 0.6 - uTime * 0.25)
+                   + 0.5 * sin(dot(st, vec2(0.4, 0.3)) - uTime * 0.18);
+    q += bgRipple * 0.06;
 
     r.x = fbm(st + 4.0 * q + vec2(1.7, 9.2) + 0.15 * uTime);
     r.y = fbm(st + 4.0 * q + vec2(8.3, 2.8) + 0.126 * uTime);
@@ -183,9 +187,9 @@ export default function RawSketchBackground({
           program.uniforms.uMouse.value[1] as number
         )
       );
-      // Ripple 2x lebih lambat: kecepatan akumulasi + redaman disesuaikan dt.
-      velocity += 25 * d * (dt / 16.7);
-      velocity *= Math.pow(0.975, dt / 16.7);
+      // Distorsi kursor ringan (radius kursor sudah kecil di shader).
+      velocity += 45 * d * (dt / 16.7);
+      velocity *= Math.pow(0.94, dt / 16.7);
       // Lerp tema buat transisi terang <-> gelap yang mulus
       themeRef.current += (targetThemeRef.current - themeRef.current) * 0.06;
       program.uniforms.uTheme.value = themeRef.current;

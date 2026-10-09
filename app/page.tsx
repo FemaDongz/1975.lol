@@ -31,6 +31,8 @@ export default function Home() {
   // Warna area di LUAR frame (yang membuat rounded kelihatan).
   // Saat intro: putih. Setelahnya: hitam di light, putih di dark.
   const outerBg = intro ? "#f4f2ed" : dark ? "#f4f2ed" : "#0a0a0c";
+  // Isi dasar frame. Saat intro: hitam (biar pixel putih glow kontras).
+  const frameFill = intro ? "#0a0a0c" : outerBg;
 
   return (
     <main
@@ -45,7 +47,7 @@ export default function Home() {
     >
       {/* Container ripple: ber-gap dari sisi + rounded. Intro pixel masuk di sini
           biar nyatu (kena rounded + garis) dan ripple muncul halus setelahnya. */}
-      <div className="frame" style={{ background: outerBg }}>
+      <div className="frame" style={{ background: frameFill }}>
         {/* Ripple: selalu ada. Saat intro kertas dibuat tembus (paperAlpha 0)
             supaya angka 1975 di belakangnya tembus & tertimpa garis ink. */}
         <RawSketchBackground dark={shaderDark} paperAlpha={intro ? 0 : 1} />

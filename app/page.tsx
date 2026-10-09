@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import RawSketchBackground from "./RawSketchBackground";
+import PixelIntro from "./PixelIntro";
 
 export default function Home() {
   const [dark, setDark] = useState(false);
+  const [intro, setIntro] = useState(true);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme");
@@ -38,7 +41,18 @@ export default function Home() {
     >
       {/* Container ripple: ber-gap dari sisi (2px HP / 4px desktop) + rounded */}
       <div className="frame" style={{ background: frameBg }}>
-        <RawSketchBackground dark={dark} />
+        {ready && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: intro ? 0 : 1,
+              transition: "opacity 1.2s ease",
+            }}
+          >
+            <RawSketchBackground dark={dark} />
+          </div>
+        )}
 
           <div
             style={{
@@ -53,7 +67,9 @@ export default function Home() {
                 "clamp(24px, 4vw, 64px) clamp(24px, 4vw, 64px) max(clamp(24px, 4vw, 64px), calc(env(safe-area-inset-bottom, 0px) + 24px))",
               color: ink,
               mixBlendMode: "difference",
-              transition: "color 1s ease",
+              opacity: intro ? 0 : 1,
+              transition: "color 1s ease, opacity 1.2s ease",
+              pointerEvents: intro ? "none" : "auto",
             }}
           >
           <header
@@ -158,6 +174,15 @@ export default function Home() {
           </footer>
         </div>
       </div>
+
+      {intro && (
+        <PixelIntro
+          onDone={() => {
+            setReady(true);
+            setTimeout(() => setIntro(false), 60);
+          }}
+        />
+      )}
     </main>
   );
 }

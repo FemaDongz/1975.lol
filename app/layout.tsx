@@ -10,15 +10,59 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
+const SITE_URL = "https://1975.lol";
+const DESCRIPTION =
+  "1975 — Simulating fluid dynamics and graphite textures using Domain Warping and FBM noise.";
+
 export const metadata: Metadata = {
-  title: "1975 — Raw Sketch",
-  description:
-    "Simulating fluid dynamics and graphite textures using Domain Warping and FBM noise.",
+  metadataBase: new URL(SITE_URL),
+  title: "1975",
+  description: DESCRIPTION,
+  applicationName: "1975",
+  keywords: ["1975", "1975.lol", "Raw Sketch", "OGL", "creative developer", "Fema"],
+  authors: [{ name: "Fema", url: SITE_URL }],
+  creator: "Fema",
+  publisher: "Fema",
+  alternates: { canonical: "/" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/icon-180.png", sizes: "180x180" }],
+    shortcut: ["/favicon.ico"],
+  },
+  manifest: "/manifest.webmanifest",
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "1975",
+    title: "1975",
+    description: DESCRIPTION,
+    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "1975" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "1975",
+    description: DESCRIPTION,
+    images: ["/icon-512.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f2ed" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
+  ],
 };
 
 export default function RootLayout({

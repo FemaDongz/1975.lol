@@ -1,14 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
-import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk",
-  display: "swap",
-});
 
 const SITE_URL = "https://1975.lol";
 const DESCRIPTION = "Portofolio Web Fema Andara Haqi";
@@ -59,8 +50,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f2ed" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
+    { media: "(prefers-color-scheme: light)", color: "#0a0a0c" },
+    { media: "(prefers-color-scheme: dark)", color: "#f4f2ed" },
   ],
 };
 
@@ -70,10 +61,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className={`${GeistSans.variable} ${GeistMono.variable} ${spaceGrotesk.variable}`}
-    >
+    <html lang="en">
       <body>{children}</body>
     </html>
   );

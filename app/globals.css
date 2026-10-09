@@ -15,8 +15,24 @@ body {
   height: 100%;
   background: #f4f2ed;
   color: #000;
-  font-family: var(--font-geist), system-ui, sans-serif;
+  font-family: var(--font-serif);
   overflow: hidden;
+}
+
+/* Frame luar: ripple duduk di dalam container ber-gap */
+.frame {
+  position: absolute;
+  inset: 2px;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: background 1s ease, border-radius 0.4s ease;
+}
+
+@media (min-width: 768px) {
+  .frame {
+    inset: 4px;
+    border-radius: 20px;
+  }
 }
 
 .pill {

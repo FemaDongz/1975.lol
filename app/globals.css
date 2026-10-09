@@ -34,7 +34,5 @@ body {
 }
 
 .pill:hover {
-  background: #f4f2ed;
-  color: #0a0a0c;
-  text-shadow: none;
+  background: rgba(255, 255, 255, 0.14);
 }

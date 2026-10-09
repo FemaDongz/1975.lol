@@ -19,8 +19,9 @@ export default function Home() {
     });
   };
 
-  // Teks solid kontras tinggi (tanpa mix-blend) - selalu kebaca di terang & gelap.
-  const ink = dark ? "#f5f3ee" : "#0a0a0c";
+  // Teks putih + mix-blend-difference: otomatis kontras di area kertas maupun
+  // ink (di terang jadi gelap, di gelap jadi terang) sambil tetap "nyatu".
+  const ink = "#ffffff";
   const pageBg = dark ? "#0a0a0c" : "#f4f2ed";
 
   return (
@@ -48,6 +49,7 @@ export default function Home() {
           height: "100%",
           padding: "clamp(24px, 4vw, 64px)",
           color: ink,
+          mixBlendMode: "difference",
           transition: "color 1s ease",
         }}
       >
@@ -126,9 +128,6 @@ export default function Home() {
             textTransform: "uppercase",
             letterSpacing: "0.2em",
             fontSize: 12,
-            textShadow: dark
-              ? "0 1px 8px rgba(0,0,0,0.8)"
-              : "0 1px 8px rgba(255,255,255,0.7)",
           }}
         >
           <div style={{ display: "flex", gap: 12 }}>

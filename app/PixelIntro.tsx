@@ -198,8 +198,8 @@ export default function PixelIntro({ onDone }: { onDone: () => void }) {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
 
-      ctx.fillStyle = "#0a0a0c";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Latar transparan: biarkan frame rounded + warna luar tembus.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (elapsed >= TIME_START && elapsed < TIME_HOLD) {
         const progress = (elapsed - TIME_START) / T_APPEAR;

@@ -25,8 +25,11 @@ export default function Home() {
   // Teks putih + mix-blend-difference: otomatis kontras di area kertas maupun
   // ink (di terang jadi gelap, di gelap jadi terang) sambil tetap "nyatu".
   const ink = "#ffffff";
-  // Warna polos di balik frame kontras dgn ripple: hitam di light, putih di dark.
-  const frameBg = dark ? "#f4f2ed" : "#0a0a0c";
+  // Warna area di LUAR frame (yang membuat rounded kelihatan).
+  // Saat intro: putih (sesuai permintaan). Setelahnya: hitam di light, putih di dark.
+  const outerBg = intro ? "#f4f2ed" : dark ? "#f4f2ed" : "#0a0a0c";
+  // Warna DASAR isi frame. Saat intro: hitam (biar pixel putih glow muncul).
+  const frameFill = intro ? "#0a0a0c" : outerBg;
 
   return (
     <main
@@ -35,14 +38,13 @@ export default function Home() {
         width: "100%",
         height: "100dvh",
         overflow: "hidden",
-        background: frameBg,
+        background: outerBg,
         transition: "background 1s ease",
       }}
     >
-      {/* Container ripple: ber-gap dari sisi (2px HP / 4px desktop) + rounded */}
       {/* Container ripple: ber-gap dari sisi + rounded. Intro pixel masuk di sini
           biar nyatu (kena rounded + garis) dan ripple muncul halus setelahnya. */}
-      <div className="frame" style={{ background: frameBg }}>
+      <div className="frame" style={{ background: frameFill }}>
         {intro && (
           <PixelIntro
             onDone={() => {

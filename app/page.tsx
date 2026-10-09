@@ -19,12 +19,13 @@ export default function Home() {
     });
   };
 
-  const ink = dark ? "#f5f3ee" : "#e8e6e1";
+  // Teks pakai warna gelap di kedua mode; exclusion membaliknya jadi terang
+  // di atas ink gelap, jadi teks tetap "nyatu" kena ripple di terang & gelap.
+  const ink = "#0a0a0c";
   const pageBg = dark ? "#0a0a0c" : "#f4f2ed";
 
   return (
     <main
-      className={dark ? "theme-dark" : undefined}
       style={{
         position: "relative",
         width: "100%",
@@ -47,7 +48,7 @@ export default function Home() {
           width: "100%",
           height: "100%",
           padding: "clamp(24px, 4vw, 64px)",
-          mixBlendMode: dark ? "normal" : "exclusion",
+          mixBlendMode: "exclusion",
           color: ink,
           transition: "color 1s ease",
         }}

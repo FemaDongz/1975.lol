@@ -30,7 +30,7 @@ export default function Home() {
       style={{
         position: "relative",
         width: "100%",
-        height: "100vh",
+        height: "100dvh",
         overflow: "hidden",
         background: frameBg,
         transition: "background 1s ease",
@@ -50,7 +50,7 @@ export default function Home() {
               width: "100%",
               height: "100%",
               padding:
-                "clamp(24px, 4vw, 64px) clamp(24px, 4vw, 64px) max(clamp(24px, 4vw, 64px), env(safe-area-inset-bottom, 0px))",
+                "clamp(24px, 4vw, 64px) clamp(24px, 4vw, 64px) max(clamp(24px, 4vw, 64px), calc(env(safe-area-inset-bottom, 0px) + 24px))",
               color: ink,
               mixBlendMode: "difference",
               transition: "color 1s ease",

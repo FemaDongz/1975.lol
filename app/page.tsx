@@ -40,7 +40,18 @@ export default function Home() {
       }}
     >
       {/* Container ripple: ber-gap dari sisi (2px HP / 4px desktop) + rounded */}
+      {/* Container ripple: ber-gap dari sisi + rounded. Intro pixel masuk di sini
+          biar nyatu (kena rounded + garis) dan ripple muncul halus setelahnya. */}
       <div className="frame" style={{ background: frameBg }}>
+        {intro && (
+          <PixelIntro
+            onDone={() => {
+              setReady(true);
+              setTimeout(() => setIntro(false), 60);
+            }}
+          />
+        )}
+
         {ready && (
           <div
             style={{
@@ -174,15 +185,6 @@ export default function Home() {
           </footer>
         </div>
       </div>
-
-      {intro && (
-        <PixelIntro
-          onDone={() => {
-            setReady(true);
-            setTimeout(() => setIntro(false), 60);
-          }}
-        />
-      )}
     </main>
   );
 }

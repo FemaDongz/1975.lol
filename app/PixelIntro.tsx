@@ -259,6 +259,7 @@ export default function PixelIntro({ onDone }: { onDone: () => void }) {
         zIndex: 50,
         width: "100%",
         height: "100%",
+        borderRadius: "inherit",
         imageRendering: "pixelated",
       }}
     />

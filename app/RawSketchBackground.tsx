@@ -67,10 +67,10 @@ const FRAG = /* glsl */ `
     float distFactor = smoothstep(0.18, 0.0, length(mouseDist));
     q += distFactor * uVelocity * 0.5;
 
-    // Ripple gelombang global di background: luas + pelan (bukan di kursor).
-    float bgRipple = sin(length(st) * 0.6 - uTime * 0.25)
-                   + 0.5 * sin(dot(st, vec2(0.4, 0.3)) - uTime * 0.18);
-    q += bgRipple * 0.06;
+    // Ripple gelombang global di background: sangat halus & pelan (kalem).
+    float bgRipple = sin(length(st) * 0.28 - uTime * 0.12)
+                   + 0.35 * sin(dot(st, vec2(0.18, 0.12)) - uTime * 0.08);
+    q += bgRipple * 0.025;
 
     r.x = fbm(st + 4.0 * q + vec2(1.7, 9.2) + 0.15 * uTime);
     r.y = fbm(st + 4.0 * q + vec2(8.3, 2.8) + 0.126 * uTime);

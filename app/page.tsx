@@ -19,9 +19,8 @@ export default function Home() {
     });
   };
 
-  // Teks pakai warna gelap di kedua mode; exclusion membaliknya jadi terang
-  // di atas ink gelap, jadi teks tetap "nyatu" kena ripple di terang & gelap.
-  const ink = "#0a0a0c";
+  // Teks solid kontras tinggi (tanpa mix-blend) - selalu kebaca di terang & gelap.
+  const ink = dark ? "#f5f3ee" : "#0a0a0c";
   const pageBg = dark ? "#0a0a0c" : "#f4f2ed";
 
   return (
@@ -48,7 +47,6 @@ export default function Home() {
           width: "100%",
           height: "100%",
           padding: "clamp(24px, 4vw, 64px)",
-          mixBlendMode: "exclusion",
           color: ink,
           transition: "color 1s ease",
         }}
@@ -128,6 +126,9 @@ export default function Home() {
             textTransform: "uppercase",
             letterSpacing: "0.2em",
             fontSize: 12,
+            textShadow: dark
+              ? "0 1px 8px rgba(0,0,0,0.8)"
+              : "0 1px 8px rgba(255,255,255,0.7)",
           }}
         >
           <div style={{ display: "flex", gap: 12 }}>

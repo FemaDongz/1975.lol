@@ -22,7 +22,10 @@ body {
 /* Frame luar: ripple duduk di dalam container ber-gap */
 .frame {
   position: absolute;
-  inset: 6px;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  left: calc(6px + env(safe-area-inset-left, 0px));
   border-radius: 16px;
   overflow: hidden;
   transition: background 1s ease, border-radius 0.4s ease;
@@ -30,7 +33,10 @@ body {
 
 @media (min-width: 768px) {
   .frame {
-    inset: 10px;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: calc(10px + env(safe-area-inset-right, 0px));
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: calc(10px + env(safe-area-inset-left, 0px));
     border-radius: 22px;
   }
 }

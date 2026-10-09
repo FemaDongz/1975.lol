@@ -40,21 +40,22 @@ export default function Home() {
       <div className="frame" style={{ background: frameBg }}>
         <RawSketchBackground dark={dark} />
 
-        <div
-          style={{
-            position: "relative",
-            zIndex: 10,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            width: "100%",
-            height: "100%",
-            padding: "clamp(24px, 4vw, 64px)",
-            color: ink,
-            mixBlendMode: "difference",
-            transition: "color 1s ease",
-          }}
-        >
+          <div
+            style={{
+              position: "relative",
+              zIndex: 10,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              width: "100%",
+              height: "100%",
+              padding:
+                "clamp(24px, 4vw, 64px) clamp(24px, 4vw, 64px) max(clamp(24px, 4vw, 64px), env(safe-area-inset-bottom, 0px))",
+              color: ink,
+              mixBlendMode: "difference",
+              transition: "color 1s ease",
+            }}
+          >
           <header
             style={{
               display: "flex",

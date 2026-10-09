@@ -114,10 +114,7 @@ export default function Home() {
               fontFamily: "var(--font-geist-mono)",
             }}
           >
-            <p>
-              Simulating fluid dynamics and graphite textures using Domain
-              Warping and FBM noise. Interact to disturb the ink.
-            </p>
+            <p>Portofolio Web Fema Andara Haqi</p>
           </div>
         </div>
 

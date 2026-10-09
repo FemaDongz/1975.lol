@@ -11,15 +11,14 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 const SITE_URL = "https://1975.lol";
-const DESCRIPTION =
-  "1975 — Simulating fluid dynamics and graphite textures using Domain Warping and FBM noise.";
+const DESCRIPTION = "Portofolio Web Fema Andara Haqi";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "1975",
   description: DESCRIPTION,
   applicationName: "1975",
-  keywords: ["1975", "1975.lol", "Raw Sketch", "OGL", "creative developer", "Fema"],
+  keywords: ["1975", "1975.lol", "Fema Andara Haqi", "portofolio", "Fema", "web developer"],
   authors: [{ name: "Fema", url: SITE_URL }],
   creator: "Fema",
   publisher: "Fema",

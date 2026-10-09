@@ -7,7 +7,6 @@ import PixelIntro from "./PixelIntro";
 export default function Home() {
   const [dark, setDark] = useState(false);
   const [intro, setIntro] = useState(true);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme");
@@ -25,11 +24,13 @@ export default function Home() {
   // Teks putih + mix-blend-difference: otomatis kontras di area kertas maupun
   // ink (di terang jadi gelap, di gelap jadi terang) sambil tetap "nyatu".
   const ink = "#ffffff";
+  // Ripple selalu tampil (intro & halaman). Saat intro dipaksa gelap supaya
+  // pixel putih glow kontras; setelah intro kembali ke tema asli (transisi
+  // di shader via lerp uTheme, jadi mulus).
+  const shaderDark = intro ? true : dark;
   // Warna area di LUAR frame (yang membuat rounded kelihatan).
-  // Saat intro: putih (sesuai permintaan). Setelahnya: hitam di light, putih di dark.
+  // Saat intro: putih. Setelahnya: hitam di light, putih di dark.
   const outerBg = intro ? "#f4f2ed" : dark ? "#f4f2ed" : "#0a0a0c";
-  // Warna DASAR isi frame. Saat intro: hitam (biar pixel putih glow muncul).
-  const frameFill = intro ? "#0a0a0c" : outerBg;
 
   return (
     <main
@@ -44,27 +45,16 @@ export default function Home() {
     >
       {/* Container ripple: ber-gap dari sisi + rounded. Intro pixel masuk di sini
           biar nyatu (kena rounded + garis) dan ripple muncul halus setelahnya. */}
-      <div className="frame" style={{ background: frameFill }}>
+      <div className="frame" style={{ background: outerBg }}>
+        {/* Ripple: selalu ada, di belakang angka intro & konten utama */}
+        <RawSketchBackground dark={shaderDark} />
+
         {intro && (
           <PixelIntro
             onDone={() => {
-              setReady(true);
               setTimeout(() => setIntro(false), 60);
             }}
           />
-        )}
-
-        {ready && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              opacity: intro ? 0 : 1,
-              transition: "opacity 1.2s ease",
-            }}
-          >
-            <RawSketchBackground dark={dark} />
-          </div>
         )}
 
           <div

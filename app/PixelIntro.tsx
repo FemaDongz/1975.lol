@@ -153,8 +153,11 @@ export default function PixelIntro({ onDone }: { onDone: () => void }) {
     }
 
     function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      // Pakai ukuran elemen (frame), bukan window, supaya angka center di frame.
+      const w = canvas.clientWidth || window.innerWidth;
+      const h = canvas.clientHeight || window.innerHeight;
+      canvas.width = w;
+      canvas.height = h;
       build();
     }
     window.addEventListener("resize", resize);

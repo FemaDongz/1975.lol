@@ -61,9 +61,10 @@ const FRAG = /* glsl */ `
 
     // Ripple lembut tepat di kursor.
     // warp() dipanggil dgn st*3.0, jadi samakan skala koordinat mouse (×3).
+    // Radius lebar (0.9) + kekuatan lembut biar kalem.
     vec2 mouseDist = st - uMouse * 3.0;
-    float distFactor = smoothstep(0.35, 0.0, length(mouseDist));
-    q += distFactor * uVelocity * 0.6;
+    float distFactor = smoothstep(0.9, 0.0, length(mouseDist));
+    q += distFactor * uVelocity * 0.35;
 
     r.x = fbm(st + 4.0 * q + vec2(1.7, 9.2) + 0.15 * uTime);
     r.y = fbm(st + 4.0 * q + vec2(8.3, 2.8) + 0.126 * uTime);
@@ -170,17 +171,21 @@ export default function RawSketchBackground({
     window.addEventListener("touchmove", onTouch, { passive: true });
 
     let rafId = 0;
+    let prevTime = 0;
     const loop = (t: number) => {
       rafId = requestAnimationFrame(loop);
-      current.lerp(target, 0.1);
+      const dt = prevTime ? Math.min(t - prevTime, 64) : 16.7;
+      prevTime = t;
+      current.lerp(target, 0.05);
       const d = current.distance(
         new Vec2(
           program.uniforms.uMouse.value[0] as number,
           program.uniforms.uMouse.value[1] as number
         )
       );
-      velocity += 50 * d;
-      velocity *= 0.95;
+      // Ripple 2x lebih lambat: kecepatan akumulasi + redaman disesuaikan dt.
+      velocity += 25 * d * (dt / 16.7);
+      velocity *= Math.pow(0.975, dt / 16.7);
       // Lerp tema buat transisi terang <-> gelap yang mulus
       themeRef.current += (targetThemeRef.current - themeRef.current) * 0.06;
       program.uniforms.uTheme.value = themeRef.current;

@@ -19,11 +19,12 @@ export default function Home() {
     });
   };
 
-  const ink = dark ? "#141517" : "#e8e6e1";
+  const ink = dark ? "#f5f3ee" : "#e8e6e1";
   const pageBg = dark ? "#0a0a0c" : "#f4f2ed";
 
   return (
     <main
+      className={dark ? "theme-dark" : undefined}
       style={{
         position: "relative",
         width: "100%",
@@ -46,7 +47,7 @@ export default function Home() {
           width: "100%",
           height: "100%",
           padding: "clamp(24px, 4vw, 64px)",
-          mixBlendMode: dark ? "screen" : "exclusion",
+          mixBlendMode: dark ? "normal" : "exclusion",
           color: ink,
           transition: "color 1s ease",
         }}

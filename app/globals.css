@@ -34,6 +34,10 @@ body {
 }
 
 .pill:hover {
-  background: #fff;
-  color: #000;
+  background: currentColor;
+  color: #f4f2ed;
+}
+
+.theme-dark .pill:hover {
+  color: #0a0a0c;
 }

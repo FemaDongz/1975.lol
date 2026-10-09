@@ -58,9 +58,10 @@ const FRAG = /* glsl */ `
     q.x = fbm(st + vec2(0.0, 0.0) + 0.1 * uTime);
     q.y = fbm(st + vec2(5.2, 1.3) + 0.3 * uTime);
 
+    // Ripple lembut tepat di kursor (radius kecil, sudut koordinat sama)
     vec2 mouseDist = st - uMouse;
-    float distFactor = smoothstep(0.4, 0.0, length(mouseDist));
-    q += distFactor * uVelocity * 2.0;
+    float distFactor = smoothstep(0.18, 0.0, length(mouseDist));
+    q += distFactor * uVelocity * 0.6;
 
     r.x = fbm(st + 4.0 * q + vec2(1.7, 9.2) + 0.15 * uTime);
     r.y = fbm(st + 4.0 * q + vec2(8.3, 2.8) + 0.126 * uTime);
@@ -143,13 +144,17 @@ export default function RawSketchBackground() {
     let velocity = 0;
     const aid = window.matchMedia("(hover: hover)").matches;
 
-    const onMove = (e: MouseEvent) => {
-      const x = e.clientX / window.innerWidth;
-      const y = 1 - e.clientY / window.innerHeight;
+    // Samakan ruang koordinat dengan shader: st.x *= aspect, jadi mouse.x juga.
+    const setTarget = (cx: number, cy: number) => {
       const aspect = window.innerWidth / window.innerHeight;
-      target.set(x * aspect, y);
+      target.set((cx / window.innerWidth) * aspect, 1 - cy / window.innerHeight);
+    };
+    const onMove = (e: MouseEvent) => setTarget(e.clientX, e.clientY);
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches[0]) setTarget(e.touches[0].clientX, e.touches[0].clientY);
     };
     if (aid) window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onTouch, { passive: true });
 
     let rafId = 0;
     const loop = (t: number) => {
@@ -174,6 +179,7 @@ export default function RawSketchBackground() {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", onResize);
       if (aid) window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("touchmove", onTouch);
       if (gl.canvas.parentNode) gl.canvas.parentNode.removeChild(gl.canvas);
     };
   }, []);

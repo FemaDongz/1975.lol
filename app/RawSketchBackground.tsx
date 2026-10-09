@@ -24,6 +24,7 @@ const FRAG = /* glsl */ `
   uniform vec2 uMouse;
   uniform float uVelocity;
   uniform float uTheme;
+  uniform float uPaperAlpha;
   uniform int uOctaves;
 
   varying vec2 vUv;
@@ -106,18 +107,26 @@ const FRAG = /* glsl */ `
     float vignette = smoothstep(1.5, 0.5, length(vUv - 0.5));
     color *= mix(vignette, 0.35 + 0.65 * vignette, uTheme);
 
-    gl_FragColor = vec4(color, 1.0);
+    // uPaperAlpha: 0 = kertas tembus (angka di belakang kelihatan),
+    //              1 = kertas penuh. Garis ink selalu tembus-lebih dulu.
+    float a = mix(uPaperAlpha, 1.0, stroke);
+    a = mix(a, max(a, 0.35), stroke);
+    gl_FragColor = vec4(color, clamp(a, 0.0, 1.0));
   }
 `;
 
 export default function RawSketchBackground({
   dark = false,
+  paperAlpha = 1,
 }: {
   dark?: boolean;
+  paperAlpha?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const themeRef = useRef(0);
   const targetThemeRef = useRef(dark ? 1 : 0);
+  const paperAlphaRef = useRef(paperAlpha);
+  const targetPaperRef = useRef(paperAlpha);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -162,6 +171,7 @@ export default function RawSketchBackground({
         uVelocity: { value: 0 },
         uTheme: { value: themeRef.current },
         uOctaves: { value: octaves },
+        uPaperAlpha: { value: paperAlphaRef.current },
       },
     });
 
@@ -230,6 +240,10 @@ export default function RawSketchBackground({
       // Lerp tema buat transisi terang <-> gelap yang mulus
       themeRef.current += (targetThemeRef.current - themeRef.current) * 0.06;
       program.uniforms.uTheme.value = themeRef.current;
+      // Lerp transparansi kertas (intro: angka tembus)
+      paperAlphaRef.current +=
+        (targetPaperRef.current - paperAlphaRef.current) * 0.08;
+      program.uniforms.uPaperAlpha.value = paperAlphaRef.current;
       program.uniforms.uTime.value = 0.001 * t;
       (program.uniforms.uMouse.value as Vec2).set(current.x, current.y);
       program.uniforms.uVelocity.value = velocity;
@@ -250,6 +264,10 @@ export default function RawSketchBackground({
   useEffect(() => {
     targetThemeRef.current = dark ? 1 : 0;
   }, [dark]);
+
+  useEffect(() => {
+    targetPaperRef.current = paperAlpha;
+  }, [paperAlpha]);
 
   return (
     <div

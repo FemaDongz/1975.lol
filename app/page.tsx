@@ -46,8 +46,9 @@ export default function Home() {
       {/* Container ripple: ber-gap dari sisi + rounded. Intro pixel masuk di sini
           biar nyatu (kena rounded + garis) dan ripple muncul halus setelahnya. */}
       <div className="frame" style={{ background: outerBg }}>
-        {/* Ripple: selalu ada, di belakang angka intro & konten utama */}
-        <RawSketchBackground dark={shaderDark} />
+        {/* Ripple: selalu ada. Saat intro kertas dibuat tembus (paperAlpha 0)
+            supaya angka 1975 di belakangnya tembus & tertimpa garis ink. */}
+        <RawSketchBackground dark={shaderDark} paperAlpha={intro ? 0 : 1} />
 
         {intro && (
           <PixelIntro

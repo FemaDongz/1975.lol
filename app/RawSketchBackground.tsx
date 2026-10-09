@@ -89,26 +89,24 @@ const FRAG = /* glsl */ `
     float lines = sin(pattern * 20.0 + uTime * 0.5);
     float stroke = smoothstep(0.4, 0.5, lines) - smoothstep(0.5, 0.6, lines);
 
-    // Ink menggambar stroke; kertas transparan supaya elemen di belakang tembus.
+    // Palet terang (kertas + graphite) dan gelap (charcoal + kapur)
+    vec3 paper = mix(vec3(0.96, 0.95, 0.93), vec3(0.05, 0.05, 0.06), uTheme);
     vec3 ink = mix(vec3(0.1, 0.1, 0.12), vec3(0.85, 0.86, 0.9), uTheme);
     vec3 hatchCol = mix(vec3(0.2), vec3(0.7), uTheme);
 
-    vec3 color = ink;
-    float alpha = stroke;
+    vec3 color = mix(paper, ink, stroke);
 
     if (pattern < 0.5) {
       float hatch = sin((st.x + st.y) * 150.0);
-      float h = smoothstep(0.9, 1.0, hatch) * 0.3;
-      color = mix(color, hatchCol, h);
-      alpha = max(alpha, h);
+      color = mix(color, hatchCol, smoothstep(0.9, 1.0, hatch) * 0.3);
     }
 
     float grain = random(vUv * uTime) * (0.1 - 0.04 * uTheme);
     color -= grain;
     float vignette = smoothstep(1.5, 0.5, length(vUv - 0.5));
-    alpha *= mix(vignette, 0.35 + 0.65 * vignette, uTheme);
+    color *= mix(vignette, 0.35 + 0.65 * vignette, uTheme);
 
-    gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+    gl_FragColor = vec4(color, 1.0);
   }
 `;
 
@@ -141,7 +139,7 @@ export default function RawSketchBackground({
 
     const renderer = new Renderer({
       dpr: Math.min(window.devicePixelRatio, dprCap),
-      alpha: true,
+      alpha: false,
       depth: false,
       antialias: false,
       powerPreference: "high-performance",

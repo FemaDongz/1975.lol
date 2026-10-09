@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import RawSketchBackground from "./RawSketchBackground";
+import Opening from "./Opening";
 
 export default function Home() {
   const [dark, setDark] = useState(false);
+  const [intro, setIntro] = useState(true);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme");
@@ -53,7 +55,9 @@ export default function Home() {
                 "clamp(24px, 4vw, 64px) clamp(24px, 4vw, 64px) max(clamp(24px, 4vw, 64px), calc(env(safe-area-inset-bottom, 0px) + 24px))",
               color: ink,
               mixBlendMode: "difference",
-              transition: "color 1s ease",
+              opacity: intro ? 0 : 1,
+              transition: "color 1s ease, opacity 1.2s ease",
+              pointerEvents: intro ? "none" : "auto",
             }}
           >
           <header
@@ -158,6 +162,8 @@ export default function Home() {
           </footer>
         </div>
       </div>
+
+      {intro && <Opening onDone={() => setIntro(false)} />}
     </main>
   );
 }

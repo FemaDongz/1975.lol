@@ -259,7 +259,7 @@ export default function PixelIntro({ onDone }: { onDone: () => void }) {
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 1, // di bawah ripple (z-2) supaya angka tertimpa garis ink
+        zIndex: 3, // sementara di atas ripple untuk verifikasi
         width: "100%",
         height: "100%",
         borderRadius: "inherit",

@@ -23,6 +23,7 @@ const FRAG = /* glsl */ `
   uniform vec2 uResolution;
   uniform vec2 uMouse;
   uniform float uVelocity;
+  uniform float uTheme;
 
   varying vec2 vUv;
 
@@ -81,24 +82,35 @@ const FRAG = /* glsl */ `
     float lines = sin(pattern * 20.0 + uTime * 0.5);
     float stroke = smoothstep(0.4, 0.5, lines) - smoothstep(0.5, 0.6, lines);
 
-    vec3 color = mix(vec3(0.96, 0.95, 0.93), vec3(0.1, 0.1, 0.12), stroke);
+    // Palet terang (kertas + graphite) dan gelap (charcoal + kapur)
+    vec3 paper = mix(vec3(0.96, 0.95, 0.93), vec3(0.05, 0.05, 0.06), uTheme);
+    vec3 ink = mix(vec3(0.1, 0.1, 0.12), vec3(0.85, 0.86, 0.9), uTheme);
+    vec3 hatchCol = mix(vec3(0.2), vec3(0.7), uTheme);
+
+    vec3 color = mix(paper, ink, stroke);
 
     if (pattern < 0.5) {
       float hatch = sin((st.x + st.y) * 150.0);
-      color = mix(color, vec3(0.2), smoothstep(0.9, 1.0, hatch) * 0.3);
+      color = mix(color, hatchCol, smoothstep(0.9, 1.0, hatch) * 0.3);
     }
 
-    float grain = random(vUv * uTime) * 0.1;
+    float grain = random(vUv * uTime) * (0.1 - 0.04 * uTheme);
     color -= grain;
     float vignette = smoothstep(1.5, 0.5, length(vUv - 0.5));
-    color *= vignette;
+    color *= mix(vignette, 0.35 + 0.65 * vignette, uTheme);
 
     gl_FragColor = vec4(color, 1.0);
   }
 `;
 
-export default function RawSketchBackground() {
+export default function RawSketchBackground({
+  dark = false,
+}: {
+  dark?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef(0);
+  const targetThemeRef = useRef(dark ? 1 : 0);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -123,6 +135,7 @@ export default function RawSketchBackground() {
         uResolution: { value: new Vec2(gl.canvas.width, gl.canvas.height) },
         uMouse: { value: new Vec2(0.5, 0.5) },
         uVelocity: { value: 0 },
+        uTheme: { value: themeRef.current },
       },
     });
 
@@ -168,6 +181,9 @@ export default function RawSketchBackground() {
       );
       velocity += 50 * d;
       velocity *= 0.95;
+      // Lerp tema buat transisi terang <-> gelap yang mulus
+      themeRef.current += (targetThemeRef.current - themeRef.current) * 0.06;
+      program.uniforms.uTheme.value = themeRef.current;
       program.uniforms.uTime.value = 0.001 * t;
       (program.uniforms.uMouse.value as Vec2).set(current.x, current.y);
       program.uniforms.uVelocity.value = velocity;
@@ -183,6 +199,10 @@ export default function RawSketchBackground() {
       if (gl.canvas.parentNode) gl.canvas.parentNode.removeChild(gl.canvas);
     };
   }, []);
+
+  useEffect(() => {
+    targetThemeRef.current = dark ? 1 : 0;
+  }, [dark]);
 
   return (
     <div

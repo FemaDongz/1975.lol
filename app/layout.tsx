@@ -1,23 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Silkscreen } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const silkscreen = Silkscreen({
-  weight: ["400", "700"],
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
+  variable: "--font-space-grotesk",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "1975 & COMING SOON - Responsive 3D Matrix",
-  description: "1975.lol — coming soon",
+  title: "1975 — Raw Sketch",
+  description:
+    "Simulating fluid dynamics and graphite textures using Domain Warping and FBM noise.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -26,7 +27,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={silkscreen.className}>
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${GeistMono.variable} ${spaceGrotesk.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

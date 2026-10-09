@@ -1,84 +1,20 @@
+:root {
+  --font-serif: Georgia, "Times New Roman", serif;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
+html,
 body {
-  background-color: #000000;
-  color: #ffffff;
-  height: 100vh;
-  width: 100vw;
+  width: 100%;
+  height: 100%;
+  background: #f4f2ed;
+  color: #000;
+  font-family: var(--font-geist), system-ui, sans-serif;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  font-family: 'Silkscreen', monospace;
-}
-
-canvas.stage-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  z-index: 1;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-/* Overlay Subteks Pixel Tipis (Responsif Mobile) */
-.subtext-container {
-  position: absolute;
-  z-index: 10;
-  width: 92vw;
-  max-width: 520px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.subtext-container.active {
-  opacity: 1;
-}
-
-.sub-credit {
-  font-family: 'Silkscreen', monospace;
-  font-size: clamp(9px, 2.5vw, 13px);
-  font-weight: 400;
-  letter-spacing: clamp(0.12em, 0.6vw, 0.22em);
-  color: rgba(255, 255, 255, 0.85);
-  text-transform: lowercase;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
-  white-space: normal;
-  word-break: break-word;
-  min-height: 1.5em;
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: grayscale;
-  image-rendering: pixelated;
-  transition: color 0.2s ease, text-shadow 0.2s ease;
-}
-
-.sub-credit.vanishing-red {
-  color: #ff0033 !important;
-  text-shadow: 0 0 8px #ff0033 !important;
-}
-
-.sub-credit.vanishing-red .decrypting {
-  color: #ff5252 !important;
-  text-shadow: 0 0 8px #ff0033 !important;
-}
-
-.decrypting {
-  color: #00f0ff;
-  text-shadow: 0 0 6px #00f0ff;
 }

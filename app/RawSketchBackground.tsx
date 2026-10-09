@@ -24,6 +24,7 @@ const FRAG = /* glsl */ `
   uniform vec2 uMouse;
   uniform float uVelocity;
   uniform float uTheme;
+  uniform int uOctaves;
 
   varying vec2 vUv;
 
@@ -42,11 +43,12 @@ const FRAG = /* glsl */ `
     return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
   }
 
-  #define OCTAVES 5
-  float fbm(in vec2 st) {
+  // FBM dgn jumlah octave yang bisa dikonfigurasi (1-5) berdasarkan device.
+  float fbm(vec2 st) {
     float value = 0.0;
     float amplitude = 0.5;
-    for (int i = 0; i < OCTAVES; i++) {
+    for (int i = 0; i < 5; i++) {
+      if (i >= uOctaves) break;
       value += amplitude * noise(st);
       st *= 2.0;
       amplitude *= 0.5;
@@ -121,10 +123,26 @@ export default function RawSketchBackground({
     const container = containerRef.current;
     if (!container) return;
 
+    // Deteksi device: HP/GPU lemah -> octave lebih rendah, DPR rendah, 30fps cap.
+    const isMobile =
+      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+      window.matchMedia("(pointer: coarse)").matches;
+    const LOW_MEM =
+      (navigator as unknown as { deviceMemory?: number }).deviceMemory !==
+        undefined &&
+      ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8) <=
+        4;
+    const weak = isMobile || LOW_MEM;
+    const octaves = weak ? 3 : 5;
+    const dprCap = weak ? 1 : 2;
+    const frameMs = weak ? 1000 / 30 : 0; // HP: cap 30fps biar stabil
+
     const renderer = new Renderer({
-      dpr: Math.min(window.devicePixelRatio, 2),
+      dpr: Math.min(window.devicePixelRatio, dprCap),
       alpha: false,
       depth: false,
+      antialias: false,
+      powerPreference: "high-performance",
     });
     const gl = renderer.gl;
     container.appendChild(gl.canvas);
@@ -141,6 +159,7 @@ export default function RawSketchBackground({
         uMouse: { value: new Vec2(0.5, 0.5) },
         uVelocity: { value: 0 },
         uTheme: { value: themeRef.current },
+        uOctaves: { value: octaves },
       },
     });
 
@@ -176,9 +195,25 @@ export default function RawSketchBackground({
 
     let rafId = 0;
     let prevTime = 0;
+    let acc = 0;
+    // Visibility: pause render saat tab tidak aktif (hemat baterai + GPU)
+    let visible = !document.hidden;
+    const onVis = () => {
+      visible = !document.hidden;
+      prevTime = 0;
+    };
+    document.addEventListener("visibilitychange", onVis);
+
     const loop = (t: number) => {
       rafId = requestAnimationFrame(loop);
+      if (!visible) return;
       const dt = prevTime ? Math.min(t - prevTime, 64) : 16.7;
+      // Cap framerate di HP biar stabil (skip frame kalau belum waktunya).
+      if (frameMs > 0) {
+        acc += dt;
+        if (acc < frameMs) return;
+        acc = 0;
+      }
       prevTime = t;
       current.lerp(target, 0.05);
       const d = current.distance(
@@ -202,6 +237,7 @@ export default function RawSketchBackground({
 
     return () => {
       cancelAnimationFrame(rafId);
+      document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("resize", onResize);
       if (aid) window.removeEventListener("mousemove", onMove);
       window.removeEventListener("touchmove", onTouch);

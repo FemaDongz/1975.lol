@@ -7,6 +7,7 @@ import Opening from "./Opening";
 export default function Home() {
   const [dark, setDark] = useState(false);
   const [intro, setIntro] = useState(true);
+  const [introPaper, setIntroPaper] = useState("#f4f2ed");
 
   useEffect(() => {
     const saved = window.localStorage.getItem("theme");
@@ -25,7 +26,8 @@ export default function Home() {
   // ink (di terang jadi gelap, di gelap jadi terang) sambil tetap "nyatu".
   const ink = "#ffffff";
   // Warna polos di balik frame kontras dgn ripple: hitam di light, putih di dark.
-  const frameBg = dark ? "#f4f2ed" : "#0a0a0c";
+  // Selama intro, warna kertas dikendalikan animasi opening (putih <-> hitam).
+  const frameBg = intro ? introPaper : dark ? "#f4f2ed" : "#0a0a0c";
 
   return (
     <main
@@ -40,7 +42,7 @@ export default function Home() {
     >
       {/* Container ripple: ber-gap dari sisi (2px HP / 4px desktop) + rounded */}
       <div className="frame" style={{ background: frameBg }}>
-        <RawSketchBackground dark={dark} />
+        <RawSketchBackground dark={intro ? introPaper !== "#f4f2ed" : dark} />
 
           <div
             style={{
@@ -163,7 +165,9 @@ export default function Home() {
         </div>
       </div>
 
-      {intro && <Opening onDone={() => setIntro(false)} />}
+      {intro && (
+        <Opening onDone={() => setIntro(false)} onPaper={setIntroPaper} />
+      )}
     </main>
   );
 }

@@ -75,11 +75,6 @@ export interface PrismCometPreloaderProps {
   onComplete?: () => void
   /** Extra root class names. */
   className?: string
-  /**
-   * Skip the whole load animation: show the finished portal star in the centre
-   * immediately, and never zoom/lift through it. Useful as a static backdrop.
-   */
-  instant?: boolean
 }
 
 const DEFAULT_PALETTE: PrismCometPalette = {
@@ -312,7 +307,6 @@ uniform vec2 uTilt;
 uniform float uHoleOpen;
 uniform float uFlash;
 uniform float uBloom;
-uniform float uFlatBg;
 
 uniform vec3 uPtr;
 uniform vec3 uBg;
@@ -485,22 +479,18 @@ void main() {
       mem += mix(uCyan, vec3(1.0), 0.6) * exp(-o * 7.0) * 0.32;
 
       vec3 portal = mix(max(mem, vec3(0.0)), ic, inside);
-      // flat mode (instant backdrop): only the star, plain background around it
-      vec3 flatPortal = ic * inside;
-      portal = mix(portal, flatPortal, uFlatBg);
       col = mix(col, portal, uStarMode);
       float hole = inside * (1.0 - smoothstep(0.5, 0.88, S));
       alpha = 1.0 - uHoleOpen * hole * uStarMode;
     }
   }
 
-  // the star catching: a soft, wide bloom off the star
+  // the star catching: a bloom off the star, not a white frame
   float bd = length(a - uStarC);
-  col += vec3(1.0, 0.86, 0.5) * uBloom * (exp(-bd * 22.0) * 2.6 + exp(-bd * 7.0) * 1.4 + exp(-bd * 2.4) * 0.5 + 0.02);
+  col += vec3(1.0, 0.95, 1.0) * uBloom * (exp(-bd * 18.0) * 3.0 + exp(-bd * 5.5) * 1.1 + 0.03);
 
   col = 1.0 - exp(-col * uExposure);
-  // gentle frame falloff (kept light so the sides are not cut away)
-  col *= 1.0 - 0.35 * smoothstep(0.55, 1.35, length(p * vec2(0.9, 1.0)));
+  col *= 1.0 - 0.5 * smoothstep(0.35, 1.25, length(p * vec2(0.9, 1.0)));
   col += (hash(gl_FragCoord.xy + fract(t * 7.0) * 311.0) - 0.5) * uGrain;
   col = mix(col, vec3(1.0), uFlash);
   alpha = mix(alpha, 1.0, uFlash);
@@ -511,7 +501,7 @@ void main() {
 const UNIFORMS = [
   "uRes", "uZoom", "uTime", "uApex", "uBeta", "uPhi", "uRho0", "uKv", "uVf", "uNarrow", "uWave", "uBulge", "uEdge",
   "uClosed", "uComet", "uLines", "uLineDir", "uStarC", "uStarR", "uStarAmt", "uStarMode", "uStarRot",
-  "uSwirl", "uTilt", "uHoleOpen", "uFlash", "uBloom", "uFlatBg", "uPtr", "uBg", "uBlue", "uViolet", "uMagenta", "uCyan", "uGold",
+  "uSwirl", "uTilt", "uHoleOpen", "uFlash", "uBloom", "uPtr", "uBg", "uBlue", "uViolet", "uMagenta", "uCyan", "uGold",
   "uExposure", "uGrain",
 ] as const
 
@@ -786,10 +776,9 @@ export default function PrismCometPreloader({
   height = "100svh",
   onComplete,
   className = "",
-  instant = false,
 }: PrismCometPreloaderProps) {
-  const [phase, setPhase] = React.useState<Phase>(instant ? "reveal" : "load")
-  const [pct, setPct] = React.useState(instant ? 100 : 0)
+  const [phase, setPhase] = React.useState<Phase>("load")
+  const [pct, setPct] = React.useState(0)
   const [pass, setPass] = React.useState(0)
   const [cycle, setCycle] = React.useState(0)
   const [failed, setFailed] = React.useState(false)
@@ -976,15 +965,10 @@ export default function PrismCometPreloader({
       // where in the stack we are: progress while loading, the end of it after
       const mTarget = phase === "load" ? pcpMorph(shownRef.current) : 4
       mShown += (mTarget - mShown) * k(phase === "load" && mTarget < mShown ? 30 : 6)
-      if (instant) {
-        // no opening: jump straight to the finished portal star in the centre
-        mShown = 4
-        igShown = 1
-      } else if (phase === "load") igShown = 0
+      if (phase === "load") igShown = 0
       else if (phase === "ignite") igShown = Math.max(igShown, clamp01(since / igniteMs))
       else igShown += (1 - igShown) * k(5)
-      // no camera push-through when instant (stays put)
-      const lift = !instant && phase === "lift" ? clamp01(since / liftMs) : 0
+      const lift = phase === "lift" ? clamp01(since / liftMs) : 0
       const rig = pcpRig(mShown, aspect)
       const ig = pcpIgnite(igShown, aspect)
       const loading = phase === "load"
@@ -1042,18 +1026,11 @@ export default function PrismCometPreloader({
       gl.uniform1f(U.uStarAmt, loading ? rig.star : 1)
       gl.uniform1f(U.uStarMode, mode)
       gl.uniform1f(U.uStarRot, (loading ? 0 : ig.rot) + (still ? 0 : Math.sin(t * 0.3) * 0.05 * mode))
-      // gentle 3D tilt only while loading (avoids the sides warping away)
-      const tiltAmt = loading ? 1 : 0
-      gl.uniform1f(U.uSwirl, instant ? 0 : mode * (0.55 + (still ? 0 : Math.sin(t * 0.7) * 0.08)))
-      gl.uniform2f(
-        U.uTilt,
-        (0.32 - ptr.nx * 0.4 * ptr.on) * mode * fade * tiltAmt,
-        (0.22 + ptr.ny * 0.34 * ptr.on) * mode * fade * tiltAmt,
-      )
+      gl.uniform1f(U.uSwirl, mode * (0.55 + (still ? 0 : Math.sin(t * 0.7) * 0.08)))
+      gl.uniform2f(U.uTilt, (0.32 - ptr.nx * 0.4 * ptr.on) * mode * fade, (0.22 + ptr.ny * 0.34 * ptr.on) * mode * fade)
       gl.uniform1f(U.uHoleOpen, L.hole ? (still ? lift : sm(clamp01(lift / 0.4))) : 0)
       // a bloom as the star catches; looping, a white-out through the portal into the next load
-      gl.uniform1f(U.uBloom, instant ? 1 : loading || still ? 0 : ig.bloom * (1 - lift))
-      gl.uniform1f(U.uFlatBg, instant ? 1 : 0)
+      gl.uniform1f(U.uBloom, loading || still ? 0 : ig.bloom * (1 - lift))
       let flash = 0
       if (!L.hole && phase === "lift") flash = still ? lift : sm(clamp01((lift - 0.5) / 0.5))
       if (loading && cycleRef.current > 0 && !still) flash = Math.exp(-since / 450)
@@ -1095,7 +1072,6 @@ export default function PrismCometPreloader({
 
   // ---- holds between phases ---------------------------------------------------------
   React.useEffect(() => {
-    if (instant) return // no opening: stay on the finished portal star forever
     if (phase === "ignite") {
       const t = setTimeout(() => setPhase("reveal"), igniteMs)
       return () => clearTimeout(t)
@@ -1117,10 +1093,9 @@ export default function PrismCometPreloader({
       }, liftMs)
       return () => clearTimeout(t)
     }
-  }, [phase, loop, igniteMs, liftMs, instant])
+  }, [phase, loop, igniteMs, liftMs])
 
   const onActivate = () => {
-    if (instant) return
     if (phase === "load") rushRef.current = true
     else if (phase === "ignite") setPhase("reveal")
     else if (phase === "reveal") setPhase("lift")

@@ -2,9 +2,12 @@
 
 import * as React from "react";
 
-// Tombol musik bergaya AntiMetalButton (slab aksen melebar + dot-wave),
-// fungsional: PLAY / STOP audio. Saat STOP (sedang main) warna jadi merah +
-// glow. Taruh di pojok kanan bawah.
+// Tombol musik bergaya AntiMetalButton, fungsional PLAY/STOP audio.
+// - Text selalu di TENGAH.
+// - Slab aksen: diam = kecil di kiri (teks tengah tetap terlihat), hover =
+//   melebar; ada animasi geser (transform) saat aktif.
+// - PLAY = hijau/kuning ; STOP (nyala) = merah + glow.
+// - Style kena noise + sudut/gap mengikuti frame halaman.
 
 const CDN_SRC =
   "https://cdn.jsdelivr.net/gh/FemaDongz/1975.lol@main/public/audio/about-you.mp3";
@@ -82,10 +85,9 @@ export default function MusicButton() {
     else a.pause();
   };
 
-  // warna: PLAY = kuning-hijau (asli), STOP/nyala = merah + glow
+  // warna: PLAY = kuning-hijau, STOP (nyala) = merah + glow
   const accentFrom = playing ? "#ff4d4d" : "#d6f54a";
   const accentTo = playing ? "#e01b1b" : "#c5ea2c";
-  const dotColor = "#0f0f0f";
 
   return (
     <button
@@ -96,14 +98,18 @@ export default function MusicButton() {
       aria-label={playing ? "Stop music" : "Play music"}
       style={{
         position: "fixed",
-        right: "calc(18px + env(safe-area-inset-right, 0px))",
-        bottom: "calc(18px + env(safe-area-inset-bottom, 0px))",
+        // gap mengikuti frame: 6px HP, 10px desktop (+ safe-area)
+        right: "calc(clamp(6px, 6px, 10px) + env(safe-area-inset-right, 0px))",
+        bottom:
+          "max(calc(clamp(6px, 6px, 10px) + env(safe-area-inset-bottom, 0px)), 18px)",
         zIndex: 60,
         display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
         height: 44,
-        width: 144,
+        width: 132,
         overflow: "hidden",
-        borderRadius: 12,
+        borderRadius: "clamp(16px, 16px, 22px)",
         border: "none",
         cursor: "pointer",
         padding: 0,
@@ -111,7 +117,7 @@ export default function MusicButton() {
         boxShadow: playing
           ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px 2px rgba(255,60,60,0.55), 0 4px 12px rgba(0,0,0,0.3)"
           : "inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.18)",
-        transition: "box-shadow 0.3s ease, transform 0.15s ease",
+        transition: "box-shadow 0.35s ease, transform 0.15s ease",
       }}
     >
       <style>{`
@@ -127,24 +133,46 @@ export default function MusicButton() {
         @media (prefers-reduced-motion: reduce) {
           .mb-dot { animation: none; opacity: 1; }
         }
+        /* noise: titik-titik halus bergerak di seluruh tombol */
+        .mb-noise {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          opacity: 0.18;
+          mix-blend-mode: screen;
+          background-image:
+            radial-gradient(rgba(255,255,255,.9) 0.5px, transparent 0.6px),
+            radial-gradient(rgba(255,255,255,.5) 0.5px, transparent 0.6px);
+          background-size: 3px 3px, 5px 5px;
+          background-position: 0 0, 1px 2px;
+          animation: mb-noise 0.5s steps(3) infinite;
+        }
+        @keyframes mb-noise {
+          0% { transform: translate(0,0); }
+          33% { transform: translate(-1px,1px); }
+          66% { transform: translate(1px,-1px); }
+          100% { transform: translate(0,0); }
+        }
+        @media (prefers-reduced-motion: reduce) { .mb-noise { animation: none; } }
       `}</style>
+
+      {/* teks selalu di tengah */}
       <span
         style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          right: 16,
-          display: "flex",
-          alignItems: "center",
+          position: "relative",
+          zIndex: 20,
           fontSize: 14,
           fontWeight: 500,
           letterSpacing: "-0.01em",
           color: "#ffffff",
-          whiteSpace: "nowrap",
+          textShadow: "0 1px 2px rgba(0,0,0,.5)",
+          transition: "color 0.3s ease",
         }}
       >
         {playing ? "Stop" : "Play"}
       </span>
+
+      {/* slab aksen: diam = kecil kiri, hover = melebar (animasi geser) */}
       <span
         aria-hidden="true"
         style={{
@@ -157,25 +185,27 @@ export default function MusicButton() {
           alignItems: "center",
           justifyContent: "flex-start",
           gap: 10,
-          width: hover ? "calc(100% - 8px)" : 36,
+          width: hover ? "calc(100% - 8px)" : 30,
           overflow: "hidden",
-          borderRadius: 8,
-          paddingLeft: 12,
+          borderRadius: "clamp(12px, 12px, 18px)",
+          paddingLeft: 10,
           paddingRight: 10,
           background: `linear-gradient(180deg, ${accentFrom} 0%, ${accentTo} 100%)`,
           boxShadow: playing
             ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.7)"
             : "inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08)",
           transition:
-            "width 0.2s cubic-bezier(0.65,0,0.35,1), background 0.3s ease, box-shadow 0.3s ease",
+            "width 0.28s cubic-bezier(0.65,0,0.35,1), background 0.35s ease, box-shadow 0.35s ease",
         }}
       >
-        <DotGroup index={0} dotColor={dotColor} />
-        <DotGroup index={1} dotColor={dotColor} />
-        <DotGroup index={2} dotColor={dotColor} />
-        <DotGroup index={3} dotColor={dotColor} />
-        <DotGroup index={4} dotColor={dotColor} />
+        <DotGroup index={0} dotColor="#0f0f0f" />
+        <DotGroup index={1} dotColor="#0f0f0f" />
+        <DotGroup index={2} dotColor="#0f0f0f" />
+        <DotGroup index={3} dotColor="#0f0f0f" />
+        <DotGroup index={4} dotColor="#0f0f0f" />
       </span>
+
+      <span className="mb-noise" aria-hidden="true" />
     </button>
   );
 }

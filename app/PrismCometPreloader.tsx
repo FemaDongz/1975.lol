@@ -312,6 +312,7 @@ uniform vec2 uTilt;
 uniform float uHoleOpen;
 uniform float uFlash;
 uniform float uBloom;
+uniform float uFlatBg;
 
 uniform vec3 uPtr;
 uniform vec3 uBg;
@@ -484,6 +485,9 @@ void main() {
       mem += mix(uCyan, vec3(1.0), 0.6) * exp(-o * 7.0) * 0.32;
 
       vec3 portal = mix(max(mem, vec3(0.0)), ic, inside);
+      // flat mode (instant backdrop): only the star, plain background around it
+      vec3 flatPortal = ic * inside;
+      portal = mix(portal, flatPortal, uFlatBg);
       col = mix(col, portal, uStarMode);
       float hole = inside * (1.0 - smoothstep(0.5, 0.88, S));
       alpha = 1.0 - uHoleOpen * hole * uStarMode;
@@ -507,7 +511,7 @@ void main() {
 const UNIFORMS = [
   "uRes", "uZoom", "uTime", "uApex", "uBeta", "uPhi", "uRho0", "uKv", "uVf", "uNarrow", "uWave", "uBulge", "uEdge",
   "uClosed", "uComet", "uLines", "uLineDir", "uStarC", "uStarR", "uStarAmt", "uStarMode", "uStarRot",
-  "uSwirl", "uTilt", "uHoleOpen", "uFlash", "uBloom", "uPtr", "uBg", "uBlue", "uViolet", "uMagenta", "uCyan", "uGold",
+  "uSwirl", "uTilt", "uHoleOpen", "uFlash", "uBloom", "uFlatBg", "uPtr", "uBg", "uBlue", "uViolet", "uMagenta", "uCyan", "uGold",
   "uExposure", "uGrain",
 ] as const
 
@@ -1049,6 +1053,7 @@ export default function PrismCometPreloader({
       gl.uniform1f(U.uHoleOpen, L.hole ? (still ? lift : sm(clamp01(lift / 0.4))) : 0)
       // a bloom as the star catches; looping, a white-out through the portal into the next load
       gl.uniform1f(U.uBloom, instant ? 1 : loading || still ? 0 : ig.bloom * (1 - lift))
+      gl.uniform1f(U.uFlatBg, instant ? 1 : 0)
       let flash = 0
       if (!L.hole && phase === "lift") flash = still ? lift : sm(clamp01((lift - 0.5) / 0.5))
       if (loading && cycleRef.current > 0 && !still) flash = Math.exp(-since / 450)

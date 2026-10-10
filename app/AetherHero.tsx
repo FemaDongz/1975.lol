@@ -58,19 +58,14 @@ vec3 scene(vec2 uv) {
 void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
-  // grid full-bleed simetris tengah: sel kotak ~8 di sisi panjang,
-  // terpusat sehingga potongan tepi selalu simetris di semua sisi
-  vec2 fullLen = vec2(R.x, R.y) / MN;
-  float cellSize = max(fullLen.x, fullLen.y) / 8.0;
-  vec2 cellUv = abs(uv) / cellSize;
-  vec2 fLine = abs(fract(cellUv + 0.5) - 0.5) * cellSize;
-  float fw = fwidth(min(fLine.x, fLine.y)) + 1e-4;
-  float lineGlow = 1.0 - smoothstep(0.0, fw * 1.2, min(fLine.x, fLine.y));
+  // grid asli: garis glow tipis, 8 sel pas di lebar (simetris tengah,
+  // garis jatuh tepat di tepi kiri-kanan)
+  float s = 8.0 * 3.14159265 / (R.x / MN);
+  float e = 9e-4;
   // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
   vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun
-  float grid = lineGlow * 0.5;
-  col += grid;
+  col += e/(sin(uv.x*s)*cos(uv.y*s));
   // gradient glow putih dari bawah sampai atas + shimmer halus
   float gg = 0.3 + 0.7 * pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 1.5);
   gg *= 0.85 + 0.15 * sin(T * 0.7 + nrm.y * 3.0);

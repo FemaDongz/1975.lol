@@ -72,9 +72,9 @@ void main() {
   float gg = 0.3 + 0.7 * pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 1.5);
   gg *= 0.85 + 0.15 * sin(T * 0.7 + nrm.y * 3.0);
   col += vec3(1.0) * gg * 0.22;
-  // noise yang jelas kelihatan
+  // noise halus
   float nz = fract(sin(dot(FC + fract(T * 3.0) * 311.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-  col += vec3(nz * 0.14);
+  col += vec3(nz * 0.06);
   uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
   // scene() (busur pelangi) dimatikan — hanya grid gelap yang tampil
   O=vec4(col,1.);

@@ -215,7 +215,7 @@ export default function AetherHero({
       visible = !document.hidden;
     };
     document.addEventListener("visibilitychange", onVis);
-    const minFrame = isMobile ? 1000 / 40 : 0;
+    const minFrame = isMobile ? 1000 / 30 : 0;
     let lastDraw = 0;
     // RAF
     const loop = (now: number) => {

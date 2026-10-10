@@ -62,6 +62,8 @@ export const AntiMetalButton = React.forwardRef<
   const [mode, setMode] = React.useState<"PLAY" | "STOP">(initialMode);
   const [hover, setHover] = React.useState(false);
   const [animatingSlab, setAnimatingSlab] = React.useState(false);
+  // true selama siklus klik berlangsung -> hover diabaikan (slab tak nyangkut penuh)
+  const [clicking, setClicking] = React.useState(false);
   const isBusyRef = React.useRef(false);
 
   const isPlay = mode === "PLAY";
@@ -97,25 +99,28 @@ export const AntiMetalButton = React.forwardRef<
           "0 0 22px rgba(239, 68, 68, 0.25), inset 0 0 14px rgba(239,68,68,0.12)",
       };
 
-  // Slab melebar jika di-hover atau saat animasi klik sedang jalan
-  const isExpanded = animatingSlab || hover;
+  // Slab melebar saat klik (animasi) atau hover. Saat siklus klik berjalan,
+  // hover DIABAIKAN supaya slab otomatis balik ke kecil tanpa nunggu lepas hover.
+  const isExpanded = animatingSlab || (hover && !clicking);
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (isBusyRef.current) return;
     isBusyRef.current = true;
+    setClicking(true);
+    setHover(false);
 
     // 1. Luncurkan slab sampai penuh
     setAnimatingSlab(true);
 
-    // 2. Setelah penuh (durasi 260ms), tarik balik ke posisi awal
+    // 2. Setelah penuh, tarik balik ke posisi awal (otomatis, tanpa syarat)
     setTimeout(() => {
       setAnimatingSlab(false);
-
-      // 3. Setelah slab benar-benar kembali tertutup (260ms lagi), barulah ganti mode
+      // 3. Setelah slab benar-benar kembali tertutup, barulah ganti mode
       setTimeout(() => {
         const nextMode = mode === "PLAY" ? "STOP" : "PLAY";
         setMode(nextMode);
         onModeChange?.(nextMode);
+        setClicking(false);
         isBusyRef.current = false;
       }, 260);
     }, 280);
@@ -212,23 +217,36 @@ export const AntiMetalButton = React.forwardRef<
           zIndex: 10,
           display: "flex",
           alignItems: "center",
-          justifyContent: "flex-start",
+          // kecil: 1 dot di tengah ; penuh: dot memanjang ke kanan
+          justifyContent: isExpanded ? "flex-start" : "center",
           width: isExpanded ? "calc(100% - 8px)" : 36,
           overflow: "hidden",
           borderRadius: 8,
-          paddingLeft: 11,
-          paddingRight: 10,
+          paddingLeft: isExpanded ? 11 : 0,
+          paddingRight: isExpanded ? 10 : 0,
           background: `linear-gradient(180deg, ${theme.slabFrom} 0%, ${theme.slabTo} 100%)`,
           boxShadow: theme.slabGlow,
           transition:
-            "width 0.26s cubic-bezier(0.65, 0, 0.35, 1), background 0.2s ease, box-shadow 0.2s ease",
+            "width 0.26s cubic-bezier(0.65, 0, 0.35, 1), padding 0.26s cubic-bezier(0.65, 0, 0.35, 1), background 0.2s ease, box-shadow 0.2s ease",
         }}
       >
         <DotGroup index={0} dotColor={theme.dotColor} />
-        <DotGroup index={1} dotColor={theme.dotColor} />
-        <DotGroup index={2} dotColor={theme.dotColor} />
-        <DotGroup index={3} dotColor={theme.dotColor} />
-        <DotGroup index={4} dotColor={theme.dotColor} />
+        {isExpanded && (
+          <>
+            <span style={{ display: "inline-flex", marginLeft: 8 }}>
+              <DotGroup index={1} dotColor={theme.dotColor} />
+            </span>
+            <span style={{ display: "inline-flex", marginLeft: 8 }}>
+              <DotGroup index={2} dotColor={theme.dotColor} />
+            </span>
+            <span style={{ display: "inline-flex", marginLeft: 8 }}>
+              <DotGroup index={3} dotColor={theme.dotColor} />
+            </span>
+            <span style={{ display: "inline-flex", marginLeft: 8 }}>
+              <DotGroup index={4} dotColor={theme.dotColor} />
+            </span>
+          </>
+        )}
       </span>
     </button>
   );

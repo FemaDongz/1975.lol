@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// 5 slot video di sel grid shader (kolom = cols, samain shader).
-// CACHE PINTAR: tiap video dicek/di-preload dulu (fetch + decode singkat).
-// Slot baru ditampilkan setelah videonya siap (readyState >= 2), jadi tidak
-// ada "hitam"/putus. Hasil pengecekan dicache agar tidak diulang.
-// Tiap slot siklus sendiri (fase beda), fade-out → pindah sel + ganti file
-// → fade-in, berulang. Saturasi 0 + vignette per-sel, muted autoplay.
+// 5 slot video di sel grid shader (7 kolom — HARUS sama supaya pas).
+// Tiap slot BERJALAN SENDIRI (fase beda): fade-out → pindah sel + ganti file
+// (dari 10 video random) → fade-in, berulang. Jadi hampir selalu terlihat
+// 5 video sekaligus, tapi tidak muncul/hilang bersamaan. Saturasi 0 +
+// vignette per-sel, muted autoplay.
 
 const FILES = [
   "s1.mp4", "s2.mp4", "s3.mp4", "s4.mp4", "s5.mp4",
@@ -18,47 +17,22 @@ const SLOTS = 5;
 const SHOW_MS = 5000;
 const FADE_MS = 800;
 
+// Cache pintar: simpan daftar file yang sudah terbukti valid di localStorage,
+// supaya kunjungan berikutnya tidak cek ulang. Key ikut daftar FILES.
+const CACHE_KEY = "gridvideos-ok-v1";
+
+async function probeFile(f: string): Promise<boolean> {
+  try {
+    const r = await fetch(`/videos/${f}`, { method: "HEAD" });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 const rand = (n: number) => Math.floor(Math.random() * n);
 type Cell = { c: number; r: number };
 type Slot = { pos: Cell; file: string; vis: number; born: number };
-
-// ---- cache pintar: status siap tiap file ----
-const readyCache = new Map<string, boolean>();
-const preloadPromise = new Map<string, Promise<boolean>>();
-
-function preloadVideo(file: string): Promise<boolean> {
-  if (readyCache.has(file)) return Promise.resolve(readyCache.get(file)!);
-  const exist = preloadPromise.get(file);
-  if (exist) return exist;
-  const p = new Promise<boolean>((resolve) => {
-    const v = document.createElement("video");
-    v.muted = true;
-    v.preload = "auto";
-    v.src = `/videos/${file}`;
-    const ok = () => {
-      readyCache.set(file, true);
-      resolve(true);
-      v.removeAttribute("src");
-    };
-    const bad = () => {
-      readyCache.set(file, false);
-      resolve(false);
-    };
-    v.addEventListener("canplaythrough", ok, { once: true });
-    v.addEventListener("loadeddata", ok, { once: true });
-    v.addEventListener("error", bad, { once: true });
-    // fallback timeout biar tidak menggantung
-    setTimeout(() => {
-      if (!readyCache.has(file)) {
-        readyCache.set(file, true);
-        resolve(true);
-      }
-    }, 4000);
-    v.load();
-  });
-  preloadPromise.set(file, p);
-  return p;
-}
 
 export default function GridVideos({ cols = 7 }: { cols?: number }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -66,12 +40,11 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
   const geoRef = useRef(geo);
   geoRef.current = geo;
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [validFiles, setValidFiles] = useState<string[]>(FILES);
+  const validRef = useRef<string[]>(FILES);
+  validRef.current = validFiles;
 
-  // warm-up cache semua video di awal
-  useEffect(() => {
-    FILES.forEach((f) => preloadVideo(f));
-  }, []);
-
+  // ukur grid (kolom = cols, samain shader)
   useEffect(() => {
     const parent = rootRef.current?.parentElement;
     if (!parent) return;
@@ -102,46 +75,86 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
     return { c: rand(cols), r: rand(rows) };
   };
 
-  const pickFile = (used: string[]): string => {
-    // utamakan file yang sudah siap (dari cache)
-    const free = FILES.filter((f) => !used.includes(f));
-    const pool = free.length ? free : FILES;
-    const ready = pool.filter((f) => readyCache.get(f) === true);
-    const pick = ready.length ? ready : pool;
-    return pick[rand(pick.length)];
-  };
-
-  // init 5 slot setelah video siap (check dulu)
+  // 0) cache pintar: cek HEAD tiap file sekali, hanya yang valid dipakai.
+  // yang lolos disimpan (localStorage) + di-preload supaya langsung tampil.
   useEffect(() => {
-    if (!geo.rows || slots.length) return;
     let alive = true;
-    Promise.all(FILES.map((f) => preloadVideo(f))).then(() => {
-      if (!alive || geoRef.current.rows === 0) return;
-      const used: Cell[] = [];
-      const usedFiles: string[] = [];
-      const now = performance.now();
-      const arr: Slot[] = [];
-      for (let i = 0; i < SLOTS; i++) {
-        const p = pickCell(used);
-        used.push(p);
-        const f = pickFile(usedFiles);
-        usedFiles.push(f);
-        arr.push({
-          pos: p,
-          file: f,
-          vis: 1,
-          born: now - Math.floor((SHOW_MS / SLOTS) * i),
-        });
+    (async () => {
+      let cached: string[] = [];
+      try {
+        cached = JSON.parse(
+          window.localStorage.getItem(CACHE_KEY) ?? "[]"
+        );
+      } catch {
+        cached = [];
       }
-      setSlots(arr);
-    });
+      const known = cached.filter((f) => FILES.includes(f));
+      const rest = FILES.filter((f) => !known.includes(f));
+      const ok: string[] = [...known];
+      // preload yang sudah diketahui valid
+      known.forEach((f) => {
+        const v = document.createElement("video");
+        v.preload = "auto";
+        v.src = `/videos/${f}`;
+      });
+      for (const f of rest) {
+        if (!alive) return;
+        // eslint-disable-next-line no-await-in-loop
+        const good = await probeFile(f);
+        if (!alive) return;
+        if (good) {
+          ok.push(f);
+          const v = document.createElement("video");
+          v.preload = "auto";
+          v.src = `/videos/${f}`;
+        }
+      }
+      if (!alive || !ok.length) return;
+      validRef.current = ok;
+      setValidFiles(ok);
+      try {
+        window.localStorage.setItem(CACHE_KEY, JSON.stringify(ok));
+      } catch {
+        /* abaikan */
+      }
+    })();
     return () => {
       alive = false;
     };
+  }, []);
+
+  // file yang belum dipakai slot lain, dari daftar VALID (hasil cek cache)
+  const pickFile = (used: string[]): string => {
+    const list = validRef.current.length ? validRef.current : FILES;
+    const free = list.filter((f) => !used.includes(f));
+    const pool = free.length ? free : list;
+    return pool[rand(pool.length)];
+  };
+
+  // init 5 slot dengan fase tersebar (born berbeda jauh)
+  useEffect(() => {
+    if (!geo.rows || slots.length) return;
+    const used: Cell[] = [];
+    const usedFiles: string[] = [];
+    const now = performance.now();
+    const arr: Slot[] = [];
+    for (let i = 0; i < SLOTS; i++) {
+      const p = pickCell(used);
+      used.push(p);
+      const f = pickFile(usedFiles);
+      usedFiles.push(f);
+      arr.push({
+        pos: p,
+        file: f,
+        vis: 1,
+        born: now - Math.floor((SHOW_MS / SLOTS) * i),
+      });
+    }
+    setSlots(arr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.rows, slots.length]);
 
-  // siklus tiap slot
+  // tiap slot siklus sendiri (interval ringan)
   useEffect(() => {
     if (slots.length !== SLOTS) return;
     const id = setInterval(() => {
@@ -150,19 +163,16 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
         let changed = false;
         const next = prev.map((s, i) => {
           const age = now - s.born;
-          const vis = age < SHOW_MS - FADE_MS ? 1 : 0;
+          const vis = age < SHOW_MS - FADE_MS ? 1 : age < SHOW_MS ? 0 : 0;
           if (age >= SHOW_MS) {
             const others = prev.filter((_, k) => k !== i).map((x) => x.pos);
             const othersFiles = prev
               .filter((_, k) => k !== i)
               .map((x) => x.file);
+            const np = pickCell(others);
+            const nf = pickFile(othersFiles);
             changed = true;
-            return {
-              pos: pickCell(others),
-              file: pickFile(othersFiles),
-              vis: 0,
-              born: now,
-            };
+            return { pos: np, file: nf, vis: 0, born: now };
           }
           if (s.vis !== vis) {
             changed = true;

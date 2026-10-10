@@ -2,13 +2,12 @@
 
 import * as React from "react";
 
-// Tombol PLAY/STOP musik — struktur AntiMetalButton (teks kanan, slab+dot kiri),
-// tapi fungsional:
-//   - PLAY: slab putih glow, teks putih glow, tombol putih glow, lebar ikut teks
-//   - STOP: slab merah, teks merah glow, tombol merah glow
-//   - noise overlay (dari gaya background) di seluruh tombol
-//   - klik PLAY: slab geser penuh -> AUTO balik sendiri -> baru ganti MERAH
-//   - klik STOP: sama, balik lalu kembali putih
+// Tombol musik bergaya AntiMetalButton.
+// - Lebar button diukur dari panjang teks (PLAY/STOP) + ruang dot.
+// - Klik: slab GESER melebar penuh, lalu BALIK OTOMATIS (tanpa klik/hover),
+//   dan saat sudah balik barulah warna berganti.
+// - PLAY = slab putih glow ; STOP = slab merah glow.
+// - Putih glow juga di border button saat mode PLAY.
 
 const CDN_SRC =
   "https://cdn.jsdelivr.net/gh/FemaDongz/1975.lol@main/public/audio/about-you.mp3";
@@ -35,6 +34,7 @@ function DotGroup({ dotColor }: { dotColor: string }) {
       height="16"
       viewBox="0 0 14 16"
       aria-hidden="true"
+      focusable="false"
       style={{ flexShrink: 0, overflow: "visible" }}
     >
       <g fill={dotColor}>
@@ -53,10 +53,20 @@ function DotGroup({ dotColor }: { dotColor: string }) {
   );
 }
 
-export default function MusicButton() {
+// ukur lebar teks (px) agar button pas dengan panjang teks
+function measureText(text: string): number {
+  if (typeof document === "undefined") return 60;
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  if (!ctx) return 60;
+  ctx.font = "500 14px system-ui, sans-serif";
+  return Math.ceil(ctx.measureText(text).width);
+}
+
+export default function PlayButton() {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = React.useState(false);
-  const [slide, setSlide] = React.useState(false);
+  const [slideOpen, setSlideOpen] = React.useState(false);
   const [useLocal, setUseLocal] = React.useState(false);
   const timers = React.useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -85,21 +95,20 @@ export default function MusicButton() {
     const a = audioRef.current;
     if (!a) return;
     clearTimers();
-    if (a.paused) a.play().catch(() => {});
+    const willPlay = a.paused;
+    if (willPlay) a.play().catch(() => {});
     else a.pause();
-    // slab geser penuh lalu AUTO balik (tanpa hover/klik luar)
-    setSlide(true);
-    timers.current.push(setTimeout(() => setSlide(false), SLIDE_MS));
+    // slab geser penuh -> balik otomatis -> warna berganti mengikuti audio
+    setSlideOpen(true);
+    timers.current.push(setTimeout(() => setSlideOpen(false), SLIDE_MS));
   };
 
-  const red = playing;
-  const accentFrom = red ? "#ff4d4d" : "#ffffff";
-  const accentTo = red ? "#e01b1b" : "#e2e2e2";
-  const textGlow = red
-    ? "0 0 10px rgba(255,60,60,0.9), 0 0 22px rgba(255,60,60,0.6)"
-    : "0 0 10px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.6)";
-  const temp = red ? "#ff4d4d" : "#ffffff";
   const label = playing ? "STOP" : "PLAY";
+  const accentFrom = playing ? "#ff4d4d" : "#ffffff";
+  const accentTo = playing ? "#e01b1b" : "#e6e6e6";
+  // lebar button = teks terpanjang + ruang dot + padding (diukur, bukan fix)
+  const btnWidth =
+    Math.max(measureText("PLAY"), measureText("STOP")) + 36 + 18 + 18;
 
   return (
     <>
@@ -116,29 +125,8 @@ export default function MusicButton() {
         .mb-slab {
           transition: width ${SLIDE_MS}ms cubic-bezier(0.65,0,0.35,1), background 0.35s ease, box-shadow 0.35s ease;
         }
-        .mb-noise {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          opacity: 0.16;
-          mix-blend-mode: screen;
-          background-image:
-            radial-gradient(rgba(255,255,255,.9) 0.5px, transparent 0.6px),
-            radial-gradient(rgba(255,255,255,.5) 0.5px, transparent 0.6px);
-          background-size: 3px 3px, 5px 5px;
-          background-position: 0 0, 1px 2px;
-          animation: mb-noise 0.5s steps(3) infinite;
-          border-radius: inherit;
-        }
-        @keyframes mb-noise {
-          0% { transform: translate(0,0); }
-          33% { transform: translate(-1px,1px); }
-          66% { transform: translate(1px,-1px); }
-          100% { transform: translate(0,0); }
-        }
         @media (prefers-reduced-motion: reduce) {
           .mb-dot { animation: none; opacity: 1; }
-          .mb-noise { animation: none; }
           .mb-slab { transition: background 0.3s ease; }
         }
       `}</style>
@@ -148,24 +136,27 @@ export default function MusicButton() {
         onClick={toggle}
         aria-label={playing ? "Stop music" : "Play music"}
         style={{
-          position: "relative",
+          position: "fixed",
+          right: "calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-right, 0px))",
+          bottom:
+            "max(calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-bottom, 0px)), 30px)",
+          zIndex: 60,
           display: "inline-flex",
           alignItems: "center",
           height: 44,
-          width: "auto",
-          padding: "4px",
+          width: btnWidth,
           overflow: "hidden",
-          borderRadius: 12,
+          borderRadius: "clamp(16px, 16px, 22px)",
           border: "none",
           cursor: "pointer",
           background: "linear-gradient(180deg,#1a1a1a 0%,#0a0a0a 100%)",
-          boxShadow: red
-            ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 20px 3px rgba(255,60,60,0.65), 0 4px 12px rgba(0,0,0,0.3)"
-            : "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 20px 3px rgba(255,255,255,0.4), 0 4px 12px rgba(0,0,0,0.18)",
-          transition: "box-shadow 0.4s ease",
+          boxShadow: playing
+            ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px 2px rgba(255,60,60,0.55), 0 4px 12px rgba(0,0,0,0.3)"
+            : "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px 1px rgba(255,255,255,0.3), 0 4px 12px rgba(0,0,0,0.18)",
+          transition: "box-shadow 0.35s ease",
         }}
       >
-        {/* slab + 1 pack dot (diam) / melebar saat klik */}
+        {/* slab: diam kecil di kiri, klik = geser penuh lalu balik otomatis */}
         <span
           aria-hidden="true"
           className="mb-slab"
@@ -177,55 +168,37 @@ export default function MusicButton() {
             zIndex: 10,
             display: "flex",
             alignItems: "center",
-            justifyContent: slide ? "flex-start" : "center",
-            gap: 6,
-            width: slide ? "calc(100% - 8px)" : 34,
+            justifyContent: "flex-start",
+            width: slideOpen ? "calc(100% - 8px)" : 36,
             overflow: "hidden",
-            borderRadius: 8,
+            borderRadius: "clamp(11px, 11px, 18px)",
             paddingLeft: 8,
             paddingRight: 8,
             background: `linear-gradient(180deg, ${accentFrom} 0%, ${accentTo} 100%)`,
-            boxShadow: red
-              ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.75)"
-              : "inset 0 1px 0 rgba(255,255,255,0.6), 0 0 12px rgba(255,255,255,0.6)",
+            boxShadow: playing
+              ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.7)"
+              : "inset 0 1px 0 rgba(255,255,255,0.5), 0 0 12px rgba(255,255,255,0.6)",
           }}
         >
           <DotGroup dotColor="#0f0f0f" />
-          {[1, 2, 3].map((k) => (
-            <span
-              key={k}
-              style={{
-                display: "inline-flex",
-                opacity: slide ? 1 : 0,
-                transform: slide ? "scale(1)" : "scale(0.6)",
-                transition: `opacity 0.3s ease ${slide ? k * 60 : 0}ms, transform 0.3s ease ${slide ? k * 60 : 0}ms`,
-              }}
-            >
-              <DotGroup dotColor="#0f0f0f" />
-            </span>
-          ))}
         </span>
 
-        {/* teks kanan (di atas slab), glow warna tema */}
+        {/* teks KAPITAL di kanan, selalu di atas slab */}
         <span
           style={{
             position: "relative",
             zIndex: 30,
             marginLeft: "auto",
-            padding: "0 16px 0 54px",
+            paddingRight: 16,
             fontSize: 14,
             fontWeight: 700,
-            letterSpacing: "0.06em",
-            color: temp,
-            textShadow: textGlow,
-            transition: "color 0.4s ease, text-shadow 0.4s ease",
+            letterSpacing: "0.08em",
+            color: "#ffffff",
+            textShadow: "0 1px 2px rgba(0,0,0,.5)",
           }}
         >
           {label}
         </span>
-
-        {/* noise overlay seluruh tombol */}
-        <span className="mb-noise" aria-hidden="true" />
       </button>
     </>
   );

@@ -156,7 +156,8 @@ export default function PlayButton() {
           transition: "box-shadow 0.35s ease",
         }}
       >
-        {/* slab: diam kecil di kiri, klik = geser penuh lalu balik otomatis */}
+        {/* slab: diam kecil (1 dot tengah), klik = geser penuh dengan dot
+            memanjang ke kanan, lalu balik otomatis */}
         <span
           aria-hidden="true"
           className="mb-slab"
@@ -180,7 +181,26 @@ export default function PlayButton() {
               : "inset 0 1px 0 rgba(255,255,255,0.5), 0 0 12px rgba(255,255,255,0.6)",
           }}
         >
+          {/* dot utama: selalu tampil, di tengah kotak saat diam */}
           <DotGroup dotColor="#0f0f0f" />
+          {/* dot tambahan: muncul & memanjang ke kanan saat slab penuh */}
+          {[1, 2, 3, 4].map((k) => (
+            <span
+              key={k}
+              className="mb-extra"
+              style={{
+                display: "inline-flex",
+                opacity: slideOpen ? 1 : 0,
+                transform: slideOpen ? "translateX(0)" : "translateX(-8px)",
+                transition: `opacity 0.25s ease ${k * 70}ms, transform 0.3s ease ${
+                  k * 70
+                }ms`,
+                marginLeft: 6,
+              }}
+            >
+              <DotGroup dotColor="#0f0f0f" />
+            </span>
+          ))}
         </span>
 
         {/* teks KAPITAL di kanan; z di BAWAH slab supaya tertutup saat slab penuh */}

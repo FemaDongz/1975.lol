@@ -511,6 +511,7 @@ export default function PixelIntro({
     function resize() {
       const w = canvas.clientWidth || window.innerWidth;
       const h = canvas.clientHeight || window.innerHeight;
+      // DPR dibatasi 1: canvas 2D 2-baris berat kalau resolusi tinggi.
       canvas.width = w;
       canvas.height = h;
       build();
@@ -519,25 +520,27 @@ export default function PixelIntro({
     resize();
 
     // Batch glow: shadowBlur (mahal di HP) diset SEKALI per jenis, bukan
-    // per-pixel. Gambar semua persegi dulu, baru blur-nya. Ini yang bikin
-    // teks 2 baris tetap lancar.
-    function drawBatch(
-      px: { x: number; y: number }[],
+    // per-pixel. Buffer interleaved [x0,y0,...] di-reuse supaya tidak ada
+    // alokasi per frame (penyebab stutter/GC).
+    const bufWhite: number[] = [];
+    const bufRed: number[] = [];
+    const bufRgb: { color: string; xy: number[] }[] = [];
+
+    function drawBatchCoords(
+      xy: number[],
       s: number,
       color: string,
       blurMul: number
     ) {
-      if (!px.length) return;
-      // lapisan glow (satu blur untuk semua)
+      if (!xy.length) return;
       ctx.save();
       ctx.shadowColor = color;
       ctx.shadowBlur = s * blurMul;
       ctx.fillStyle = color;
-      for (let i = 0; i < px.length; i++) ctx.fillRect(px[i].x, px[i].y, s, s);
+      for (let i = 0; i < xy.length; i += 2) ctx.fillRect(xy[i], xy[i + 1], s, s);
       ctx.restore();
-      // inti putih (tanpa shadow)
       ctx.fillStyle = "#ffffff";
-      for (let i = 0; i < px.length; i++) ctx.fillRect(px[i].x, px[i].y, s, s);
+      for (let i = 0; i < xy.length; i += 2) ctx.fillRect(xy[i], xy[i + 1], s, s);
     }
 
     function render(timestamp: number) {
@@ -550,13 +553,16 @@ export default function PixelIntro({
       const seg = segs.find((g) => elapsed >= g.start && elapsed < g.end);
       if (seg) {
         const art = arts[seg.art];
+        const s = art.size;
+        const px = art.pixels;
         if (elapsed < seg.appearEnd) {
           const progress = (elapsed - seg.start) / T_APPEAR;
-          // kumpulkan per warna supaya batch (glow sekali)
-          const white: { x: number; y: number }[] = [];
-          const rgbByColor = new Map<string, { x: number; y: number }[]>();
-          art.pixels.forEach((p) => {
-            if (progress < p.appearTime) return;
+          bufWhite.length = 0;
+          bufRgb.length = 0;
+          const rgbIndex: Record<string, number> = {};
+          for (let k = 0; k < px.length; k++) {
+            const p = px[k];
+            if (progress < p.appearTime) continue;
             const since = progress - p.appearTime;
             if (since < 0.24) {
               if (Math.random() < 0.52) {
@@ -564,37 +570,43 @@ export default function PixelIntro({
                   Math.random() < 0.35
                     ? RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)]
                     : p.rgbColor;
-                const arr = rgbByColor.get(dyn) ?? [];
-                arr.push({ x: p.baseX, y: p.baseY });
-                rgbByColor.set(dyn, arr);
+                let bi = rgbIndex[dyn];
+                if (bi === undefined) {
+                  bi = bufRgb.length;
+                  rgbIndex[dyn] = bi;
+                  bufRgb.push({ color: dyn, xy: [] });
+                }
+                bufRgb[bi].xy.push(p.baseX, p.baseY);
               }
             } else {
-              white.push({ x: p.baseX, y: p.baseY });
+              bufWhite.push(p.baseX, p.baseY);
             }
-          });
-          rgbByColor.forEach((arr, color) => drawBatch(arr, art.size, color, 1.5));
-          drawBatch(white, art.size, "#ffffff", 1.8);
+          }
+          for (let i = 0; i < bufRgb.length; i++) {
+            drawBatchCoords(bufRgb[i].xy, s, bufRgb[i].color, 1.5);
+          }
+          drawBatchCoords(bufWhite, s, "#ffffff", 1.8);
         } else if (elapsed < seg.holdEnd) {
-          drawBatch(
-            art.pixels.map((p) => ({ x: p.baseX, y: p.baseY })),
-            art.size,
-            "#ffffff",
-            1.8
-          );
+          bufWhite.length = 0;
+          for (let k = 0; k < px.length; k++) {
+            bufWhite.push(px[k].baseX, px[k].baseY);
+          }
+          drawBatchCoords(bufWhite, s, "#ffffff", 1.8);
         } else if (elapsed < seg.vanishEnd) {
           const progress = (elapsed - seg.holdEnd) / T_VANISH;
-          const white: { x: number; y: number }[] = [];
-          const red: { x: number; y: number }[] = [];
-          art.pixels.forEach((p) => {
-            if (progress > p.disappearTime + 0.24) return;
+          bufWhite.length = 0;
+          bufRed.length = 0;
+          for (let k = 0; k < px.length; k++) {
+            const p = px[k];
+            if (progress > p.disappearTime + 0.24) continue;
             if (progress > p.disappearTime) {
-              if (Math.random() < 0.52) red.push({ x: p.baseX, y: p.baseY });
+              if (Math.random() < 0.52) bufRed.push(p.baseX, p.baseY);
             } else {
-              white.push({ x: p.baseX, y: p.baseY });
+              bufWhite.push(p.baseX, p.baseY);
             }
-          });
-          drawBatch(white, art.size, "#ffffff", 1.8);
-          drawBatch(red, art.size, "#ff0033", 1.2);
+          }
+          drawBatchCoords(bufWhite, s, "#ffffff", 1.8);
+          drawBatchCoords(bufRed, s, "#ff0033", 1.2);
         }
       }
 

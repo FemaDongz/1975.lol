@@ -59,18 +59,28 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
     return { c: rand(cols), r: rand(rows) };
   };
 
+  // file yang belum dipakai slot lain (selalu beda-beda antar slot)
+  const pickFile = (used: string[]): string => {
+    const free = FILES.filter((f) => !used.includes(f));
+    const pool = free.length ? free : FILES;
+    return pool[rand(pool.length)];
+  };
+
   // init 5 slot dengan fase tersebar (born berbeda jauh)
   useEffect(() => {
     if (!geo.rows || slots.length) return;
     const used: Cell[] = [];
+    const usedFiles: string[] = [];
     const now = performance.now();
     const arr: Slot[] = [];
     for (let i = 0; i < SLOTS; i++) {
       const p = pickCell(used);
       used.push(p);
+      const f = pickFile(usedFiles);
+      usedFiles.push(f);
       arr.push({
         pos: p,
-        file: FILES[rand(FILES.length)],
+        file: f,
         vis: 1,
         born: now - Math.floor((SHOW_MS / SLOTS) * i),
       });
@@ -91,9 +101,13 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
           const vis = age < SHOW_MS - FADE_MS ? 1 : age < SHOW_MS ? 0 : 0;
           if (age >= SHOW_MS) {
             const others = prev.filter((_, k) => k !== i).map((x) => x.pos);
+            const othersFiles = prev
+              .filter((_, k) => k !== i)
+              .map((x) => x.file);
             const np = pickCell(others);
+            const nf = pickFile(othersFiles);
             changed = true;
-            return { pos: np, file: FILES[rand(FILES.length)], vis: 0, born: now };
+            return { pos: np, file: nf, vis: 0, born: now };
           }
           if (s.vis !== vis) {
             changed = true;

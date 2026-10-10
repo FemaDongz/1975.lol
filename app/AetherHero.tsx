@@ -58,14 +58,14 @@ vec3 scene(vec2 uv) {
 void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
-  // grid asli: garis glow tipis, 7 sel pas di lebar (simetris tengah,
-  // garis jatuh tepat di tepi kiri-kanan, tinggi menyesuaikan)
+  // grid asli: garis glow tipis, 7 sel pas di lebar (simetris tengah).
+  // cos di sumbu-x supaya garis vertikal jatuh tepat di batas sel video.
   float s = 7.0 * 3.14159265 / (R.x / MN);
   float e = 9e-4;
   // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
   vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun
-  col += e/(sin(uv.x*s)*cos(uv.y*s));
+  col += e/(cos(uv.x*s)*sin(uv.y*s));
   // gradient glow putih dari bawah sampai atas + shimmer halus
   float gg = 0.3 + 0.7 * pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 1.5);
   gg *= 0.85 + 0.15 * sin(T * 0.7 + nrm.y * 3.0);

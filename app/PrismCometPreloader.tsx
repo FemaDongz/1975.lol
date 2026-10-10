@@ -490,12 +490,13 @@ void main() {
     }
   }
 
-  // the star catching: a bloom off the star, not a white frame
+  // the star catching: a soft, wide bloom off the star
   float bd = length(a - uStarC);
-  col += vec3(1.0, 0.95, 1.0) * uBloom * (exp(-bd * 18.0) * 3.0 + exp(-bd * 5.5) * 1.1 + 0.03);
+  col += vec3(1.0, 0.86, 0.5) * uBloom * (exp(-bd * 22.0) * 2.6 + exp(-bd * 7.0) * 1.4 + exp(-bd * 2.4) * 0.5 + 0.02);
 
   col = 1.0 - exp(-col * uExposure);
-  col *= 1.0 - 0.5 * smoothstep(0.35, 1.25, length(p * vec2(0.9, 1.0)));
+  // gentle frame falloff (kept light so the sides are not cut away)
+  col *= 1.0 - 0.35 * smoothstep(0.55, 1.35, length(p * vec2(0.9, 1.0)));
   col += (hash(gl_FragCoord.xy + fract(t * 7.0) * 311.0) - 0.5) * uGrain;
   col = mix(col, vec3(1.0), uFlash);
   alpha = mix(alpha, 1.0, uFlash);
@@ -1037,11 +1038,17 @@ export default function PrismCometPreloader({
       gl.uniform1f(U.uStarAmt, loading ? rig.star : 1)
       gl.uniform1f(U.uStarMode, mode)
       gl.uniform1f(U.uStarRot, (loading ? 0 : ig.rot) + (still ? 0 : Math.sin(t * 0.3) * 0.05 * mode))
-      gl.uniform1f(U.uSwirl, mode * (0.55 + (still ? 0 : Math.sin(t * 0.7) * 0.08)))
-      gl.uniform2f(U.uTilt, (0.32 - ptr.nx * 0.4 * ptr.on) * mode * fade, (0.22 + ptr.ny * 0.34 * ptr.on) * mode * fade)
+      // gentle 3D tilt only while loading (avoids the sides warping away)
+      const tiltAmt = loading ? 1 : 0
+      gl.uniform1f(U.uSwirl, instant ? 0 : mode * (0.55 + (still ? 0 : Math.sin(t * 0.7) * 0.08)))
+      gl.uniform2f(
+        U.uTilt,
+        (0.32 - ptr.nx * 0.4 * ptr.on) * mode * fade * tiltAmt,
+        (0.22 + ptr.ny * 0.34 * ptr.on) * mode * fade * tiltAmt,
+      )
       gl.uniform1f(U.uHoleOpen, L.hole ? (still ? lift : sm(clamp01(lift / 0.4))) : 0)
       // a bloom as the star catches; looping, a white-out through the portal into the next load
-      gl.uniform1f(U.uBloom, loading || still ? 0 : ig.bloom * (1 - lift))
+      gl.uniform1f(U.uBloom, instant ? 1 : loading || still ? 0 : ig.bloom * (1 - lift))
       let flash = 0
       if (!L.hole && phase === "lift") flash = still ? lift : sm(clamp01((lift - 0.5) / 0.5))
       if (loading && cycleRef.current > 0 && !still) flash = Math.exp(-since / 450)

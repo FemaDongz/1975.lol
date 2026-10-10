@@ -60,24 +60,27 @@ void main() {
   vec3 col=vec3(0);
   // grid PAS di semua sisi: margin sama rata, jumlah sel genap sehingga
   // garis jatuh tepat di tepi area (simetris, tidak kepotong asal)
-  vec2 full = vec2(R.x, R.y) / MN;
-  float M = 0.08;
-  vec2 area = full - 2.0 * M;
-  float cell0 = max(area.x, area.y) / 8.0;
-  float nx = max(2.0, 2.0 * floor(area.x / cell0 / 2.0 + 0.5));
-  float cell = area.x / nx;
-  float ny = max(2.0, 2.0 * floor(area.y / cell / 2.0));
-  vec2 half = vec2(nx * cell, ny * cell) * 0.5;
-  vec2 aq = abs(uv);
-  float gridMask = (1.0 - smoothstep(half.x - 0.015, half.x + 0.015, aq.x))
-                 * (1.0 - smoothstep(half.y - 0.015, half.y + 0.015, aq.y));
-  float s2 = 3.14159265 / cell;
-  float e = 9e-4;
+  vec2 fullSize = vec2(R.x, R.y) / MN;
+  float mgEdge = 0.08;
+  vec2 areaSize = fullSize - 2.0 * mgEdge;
+  float cell0 = max(areaSize.x, areaSize.y) / 8.0;
+  float nxCount = max(2.0, 2.0 * floor(areaSize.x / cell0 / 2.0 + 0.5));
+  float cellSize = areaSize.x / nxCount;
+  float nyCount = max(2.0, 2.0 * floor(areaSize.y / cellSize / 2.0));
+  vec2 areaHalf = vec2(nxCount * cellSize, nyCount * cellSize) * 0.5;
+  vec2 absUv = abs(uv);
+  float gridMask = (1.0 - smoothstep(areaHalf.x - 0.015, areaHalf.x + 0.015, absUv.x))
+                 * (1.0 - smoothstep(areaHalf.y - 0.015, areaHalf.y + 0.015, absUv.y));
+  // garis grid tegas (fract, anti hilang): jarak ke garis terdekat
+  vec2 cellUv = absUv / cellSize;
+  vec2 fLine = abs(fract(cellUv + 0.5) - 0.5) * cellSize;
+  float fw = fwidth(min(fLine.x, fLine.y)) + 1e-4;
+  float lineGlow = 1.0 - smoothstep(0.0, fw * 1.5, min(fLine.x, fLine.y));
   // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
   vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun
   float mask = 1.0; // tanpa vignette: glow full-bleed sampai tepi
-  float grid = e / (sin(uv.x * s2) * cos(uv.y * s2));
+  float grid = lineGlow * 0.85;
   col += grid * gridMask;
   // gradient glow putih dari bawah sampai atas + shimmer halus
   float gg = 0.3 + 0.7 * pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 1.5);

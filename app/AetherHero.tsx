@@ -27,7 +27,7 @@ export type AetherHeroProps = {
   ariaLabel?: string;
 };
 
-/* Default fragment shader — monochrome flow + film grain (no RGB lasers) */
+/* Default fragment shader — film grain only (no streaks, no RGB lasers) */
 const DEFAULT_FRAG = `#version 300 es
 precision highp float;
 out vec4 O;
@@ -42,37 +42,35 @@ float hash(vec2 p) {
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
 }
-float pattern(vec2 uv) {
-  float d=.0;
-  for (float i=.0; i<3.; i++) {
-    uv.x+=sin(T*(1.+i)+uv.y*1.5)*.2;
-    d+=.005/abs(uv.x);
-  }
-  return d;
-}
-float scene(vec2 uv) {
-  float col=0.;
-  uv=vec2(atan(uv.x,uv.y)*2./6.28318,-log(length(uv))+T);
-  for (float i=.0; i<3.; i++) {
-    col+=pattern(uv+i*6./MN);
-  }
-  return col;
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 w = f * f * (3.0 - 2.0 * f);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, w.x), mix(c, d, w.x), w.y);
 }
 void main() {
   vec2 uv=(FC-.5*R)/MN;
-  float col=0.;
-  float s=12., e=9e-4;
-  col+=e/(sin(uv.x*s)*cos(uv.y*s));
-  uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
-  col+=scene(uv);
-  // monochrome murni: paksa semua jadi skala abu + lembutkan garis tajam
-  float g = clamp(col, 0.0, 1.0);
-  g = smoothstep(0.0, 0.85, g);
-  // film grain halus
+  // soft drifting clouds of noise (no streaks)
+  float g = 0.0;
+  float amp = 0.5;
+  vec2 q = uv * 1.4;
+  for (int i = 0; i < 5; i++) {
+    g += amp * vnoise(q + T * 0.12);
+    q *= 1.9;
+    amp *= 0.5;
+  }
+  g = g / 0.9375;
+  // gentle contrast so it reads as texture, not flat grey
+  g = smoothstep(0.15, 0.9, g);
+  // film grain
   float n = hash(FC + fract(T * 3.0) * 311.0) - 0.5;
   g += n * 0.06;
-  // vignette lembut
-  float vig = 1.0 - 0.35 * smoothstep(0.6, 1.4, length(uv));
+  // vignette
+  float vig = 1.0 - 0.4 * smoothstep(0.55, 1.4, length(uv));
   g *= vig;
   O=vec4(vec3(g), 1.0);
 }`;

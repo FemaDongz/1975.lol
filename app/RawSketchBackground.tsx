@@ -33,65 +33,84 @@ const FRAG = /* glsl */ `
     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
   }
 
-  // Bubble dalam satu sel: naik pelan, outline tipis + highlight (2D).
-  float bubbleField(vec2 p, float t) {
-    vec2 id = floor(p);
-    vec2 gv = fract(p) - 0.5;
+  float noise(in vec2 st) {
+    vec2 i = floor(st);
+    vec2 f = fract(st);
+    float a = random(i);
+    float b = random(i + vec2(1.0, 0.0));
+    float c = random(i + vec2(0.0, 1.0));
+    float d = random(i + vec2(1.0, 1.0));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+  }
 
-    float sum = 0.0;
-    // 3 lapis grid beda skala/fase -> bubble saling mengisi, tidak menyambung.
-    for (int k = 0; k < 3; k++) {
-      float fk = float(k);
-      vec2 idk = id + fk * 17.0;
-      // posisi acak dalam sel
-      vec2 rnd = vec2(random(idk), random(idk + 3.7));
-      // naik pelan (offset vertikal loop)
-      float rise = fract(rnd.y + t * 0.03 * (1.0 + fk * 0.3));
-      vec2 center = vec2(rnd.x - 0.5, rise - 0.5) * 0.6;
-      // ukuran bubble beda-beda
-      float radius = 0.14 + 0.10 * random(idk + 9.1);
-
-      float d = length(gv - center);
-      // outline tipis + isian tembus
-      float ring = smoothstep(radius, radius - 0.012, d)
-                 - smoothstep(radius - 0.02, radius - 0.05, d);
-      float fill = smoothstep(radius - 0.02, radius - 0.08, d) * 0.25;
-      // kilau kecil (highlight kiri-atas)
-      float hi = smoothstep(radius * 0.6, 0.0, length(gv - center + vec2(radius * 0.35, -radius * 0.35)));
-      sum += ring + fill + hi * 0.35 * step(0.5, random(idk + 5.3));
+  // FBM dgn jumlah octave yang bisa dikonfigurasi (1-5) berdasarkan device.
+  float fbm(vec2 st) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    for (int i = 0; i < 5; i++) {
+      if (i >= uOctaves) break;
+      value += amplitude * noise(st);
+      st *= 2.0;
+      amplitude *= 0.5;
     }
-    return sum;
+    return value;
+  }
+
+  float warp(vec2 st, out vec2 q, out vec2 r) {
+    vec2 offset = vec2(0.0);
+    q.x = fbm(st + vec2(0.0, 0.0) + 0.1 * uTime);
+    q.y = fbm(st + vec2(5.2, 1.3) + 0.3 * uTime);
+
+    // Distorsi kursor: radius KECIL (lingkaran kursor rapat) + kuat.
+    // warp() dipanggil dgn st*3.0, jadi samakan skala koordinat mouse (×3).
+    vec2 mouseDist = st - uMouse * 3.0;
+    float distFactor = smoothstep(0.18, 0.0, length(mouseDist));
+    q += distFactor * uVelocity * 0.5;
+
+    // Ripple gelombang global di background: sangat halus & pelan (kalem).
+    float bgRipple = sin(length(st) * 0.28 - uTime * 0.12)
+                   + 0.35 * sin(dot(st, vec2(0.18, 0.12)) - uTime * 0.08);
+    q += bgRipple * 0.025;
+
+    r.x = fbm(st + 4.0 * q + vec2(1.7, 9.2) + 0.15 * uTime);
+    r.y = fbm(st + 4.0 * q + vec2(8.3, 2.8) + 0.126 * uTime);
+
+    return fbm(st + 4.0 * r);
   }
 
   void main() {
-    vec2 uv = gl_FragCoord.xy / uResolution.xy;
-    vec2 st = uv;
+    vec2 st = gl_FragCoord.xy / uResolution.xy;
     st.x *= uResolution.x / uResolution.y;
 
-    // skala bubble (makin besar = makin rapat)
-    float SCALE = 4.0;
-    float field = bubbleField(st * SCALE, uTime);
+    st += (random(st * 10.0) - 0.5) * 0.005;
 
-    // distorsi kursor halus: bubble sedikit "terdorong" dekat kursor
-    vec2 mouseDist = st - uMouse * 1.0;
-    float md = smoothstep(0.25, 0.0, length(mouseDist));
-    field += md * uVelocity * 0.15;
-
-    field = clamp(field, 0.0, 1.0);
+    vec2 q, r;
+    float pattern = warp(st * 3.0, q, r);
+    float lines = sin(pattern * 20.0 + uTime * 0.5);
+    float stroke = smoothstep(0.4, 0.5, lines) - smoothstep(0.5, 0.6, lines);
 
     // Palet terang (kertas + graphite) dan gelap (charcoal + kapur)
     vec3 paper = mix(vec3(0.96, 0.95, 0.93), vec3(0.05, 0.05, 0.06), uTheme);
-    vec3 ink   = mix(vec3(0.15, 0.16, 0.20), vec3(0.85, 0.88, 0.95), uTheme);
+    vec3 ink = mix(vec3(0.1, 0.1, 0.12), vec3(0.85, 0.86, 0.9), uTheme);
+    vec3 hatchCol = mix(vec3(0.2), vec3(0.7), uTheme);
 
-    vec3 color = mix(paper, ink, field);
+    vec3 color = mix(paper, ink, stroke);
 
-    // grain + vignette halus
-    float grain = random(uv * uTime) * (0.05 - 0.02 * uTheme);
+    if (pattern < 0.5) {
+      float hatch = sin((st.x + st.y) * 150.0);
+      color = mix(color, hatchCol, smoothstep(0.9, 1.0, hatch) * 0.3);
+    }
+
+    float grain = random(vUv * uTime) * (0.1 - 0.04 * uTheme);
     color -= grain;
-    float vignette = smoothstep(1.5, 0.5, length(uv - 0.5));
-    color *= mix(vignette, 0.4 + 0.6 * vignette, uTheme);
+    float vignette = smoothstep(1.5, 0.5, length(vUv - 0.5));
+    color *= mix(vignette, 0.35 + 0.65 * vignette, uTheme);
 
-    float a = mix(uPaperAlpha, 1.0, field);
+    // uPaperAlpha: 0 = kertas tembus (angka di belakang kelihatan),
+    //              1 = kertas penuh. Garis ink selalu tembus-lebih dulu.
+    float a = mix(uPaperAlpha, 1.0, stroke);
+    a = mix(a, max(a, 0.35), stroke);
     gl_FragColor = vec4(color, clamp(a, 0.0, 1.0));
   }
 `;

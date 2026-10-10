@@ -3,23 +3,18 @@
 import * as React from "react";
 
 // Tombol musik bergaya AntiMetalButton, fungsional PLAY/STOP audio.
-// - Text selalu di TENGAH.
-// - Slab aksen: diam = kecil di kiri (teks tengah tetap terlihat), hover =
-//   melebar; ada animasi geser (transform) saat aktif.
-// - PLAY = hijau/kuning ; STOP (nyala) = merah + glow.
-// - Style kena noise + sudut/gap mengikuti frame halaman.
+// - Lebar mengikuti panjang teks.
+// - Teks di TENGAH.
+// - Slab aksen: diam = kecil di kiri, hover = melebar (transisi).
+// - PLAY = putih glow ; STOP (nyala) = merah glow.
+// - Hover pakai CSS :hover (media hover) supaya tidak nyangkut di HP.
+//   Saat tap di HP, animasi langsung balik (reset) — tidak nyangkut.
 
 const CDN_SRC =
   "https://cdn.jsdelivr.net/gh/FemaDongz/1975.lol@main/public/audio/about-you.mp3";
 const LOCAL_SRC = "/audio/about-you.mp3";
 
-function DotGroup({
-  index,
-  dotColor,
-}: {
-  index: number;
-  dotColor: string;
-}) {
+function DotGroup({ index, dotColor }: { index: number; dotColor: string }) {
   const base = index * 0.12;
   const dots = [
     { cx: 2, cy: 2, d: 0 },
@@ -60,8 +55,8 @@ function DotGroup({
 export default function MusicButton() {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = React.useState(false);
-  const [hover, setHover] = React.useState(false);
   const [useLocal, setUseLocal] = React.useState(false);
+  const [pressed, setPressed] = React.useState(false);
 
   React.useEffect(() => {
     const audio = new Audio();
@@ -85,41 +80,13 @@ export default function MusicButton() {
     else a.pause();
   };
 
-  // warna: PLAY = kuning-hijau, STOP (nyala) = merah + glow
-  const accentFrom = playing ? "#ff4d4d" : "#d6f54a";
-  const accentTo = playing ? "#e01b1b" : "#c5ea2c";
+  // PLAY = putih glow ; nyala = merah glow
+  const accentFrom = playing ? "#ff4d4d" : "#ffffff";
+  const accentTo = playing ? "#e01b1b" : "#d9d9d9";
+  const label = playing ? "Stop" : "Play";
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      aria-label={playing ? "Stop music" : "Play music"}
-      style={{
-        position: "fixed",
-        // gap mengikuti frame: 6px HP, 10px desktop (+ safe-area)
-        right: "calc(clamp(6px, 6px, 10px) + env(safe-area-inset-right, 0px))",
-        bottom:
-          "max(calc(clamp(6px, 6px, 10px) + env(safe-area-inset-bottom, 0px)), 18px)",
-        zIndex: 60,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: 44,
-        width: 132,
-        overflow: "hidden",
-        borderRadius: "clamp(16px, 16px, 22px)",
-        border: "none",
-        cursor: "pointer",
-        padding: 0,
-        background: "linear-gradient(180deg,#1a1a1a 0%,#0a0a0a 100%)",
-        boxShadow: playing
-          ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px 2px rgba(255,60,60,0.55), 0 4px 12px rgba(0,0,0,0.3)"
-          : "inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.18)",
-        transition: "box-shadow 0.35s ease, transform 0.15s ease",
-      }}
-    >
+    <>
       <style>{`
         @keyframes mb-dot-wave {
           0%, 70%, 100% { opacity: 0.25; transform: scale(0.85); }
@@ -130,82 +97,99 @@ export default function MusicButton() {
           transform-origin: center;
           animation: mb-dot-wave 1.4s ease-in-out infinite;
         }
+        /* slab: diam kecil di kiri; hover (perangkat mouse) melebar */
+        .mb-slab {
+          width: 30px;
+          transition: width 0.28s cubic-bezier(0.65,0,0.35,1), background 0.35s ease, box-shadow 0.35s ease;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .mb-root:hover .mb-slab { width: calc(100% - 8px); }
+        }
+        .mb-root:active { transform: scale(0.98); }
         @media (prefers-reduced-motion: reduce) {
           .mb-dot { animation: none; opacity: 1; }
         }
-        /* noise: titik-titik halus bergerak di seluruh tombol */
-        .mb-noise {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          opacity: 0.18;
-          mix-blend-mode: screen;
-          background-image:
-            radial-gradient(rgba(255,255,255,.9) 0.5px, transparent 0.6px),
-            radial-gradient(rgba(255,255,255,.5) 0.5px, transparent 0.6px);
-          background-size: 3px 3px, 5px 5px;
-          background-position: 0 0, 1px 2px;
-          animation: mb-noise 0.5s steps(3) infinite;
-        }
-        @keyframes mb-noise {
-          0% { transform: translate(0,0); }
-          33% { transform: translate(-1px,1px); }
-          66% { transform: translate(1px,-1px); }
-          100% { transform: translate(0,0); }
-        }
-        @media (prefers-reduced-motion: reduce) { .mb-noise { animation: none; } }
       `}</style>
 
-      {/* teks selalu di tengah */}
-      <span
+      <button
+        type="button"
+        onClick={toggle}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={() => setPressed(false)}
+        onPointerLeave={() => setPressed(false)}
+        aria-label={playing ? "Stop music" : "Play music"}
+        className="mb-root"
         style={{
-          position: "relative",
-          zIndex: 20,
-          fontSize: 14,
-          fontWeight: 500,
-          letterSpacing: "-0.01em",
-          color: "#ffffff",
-          textShadow: "0 1px 2px rgba(0,0,0,.5)",
-          transition: "color 0.3s ease",
-        }}
-      >
-        {playing ? "Stop" : "Play"}
-      </span>
-
-      {/* slab aksen: diam = kecil kiri, hover = melebar (animasi geser) */}
-      <span
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: 4,
-          bottom: 4,
-          left: 4,
-          zIndex: 10,
-          display: "flex",
+          position: "fixed",
+          right: "calc(clamp(6px, 6px, 10px) + env(safe-area-inset-right, 0px))",
+          bottom:
+            "max(calc(clamp(6px, 6px, 10px) + env(safe-area-inset-bottom, 0px)), 18px)",
+          zIndex: 60,
+          display: "inline-flex",
           alignItems: "center",
-          justifyContent: "flex-start",
-          gap: 10,
-          width: hover ? "calc(100% - 8px)" : 30,
+          justifyContent: "center",
+          height: 44,
+          // lebar mengikuti panjang teks + padding
+          width: "auto",
+          minWidth: 92,
+          padding: "0 28px",
           overflow: "hidden",
-          borderRadius: "clamp(12px, 12px, 18px)",
-          paddingLeft: 10,
-          paddingRight: 10,
-          background: `linear-gradient(180deg, ${accentFrom} 0%, ${accentTo} 100%)`,
+          borderRadius: "clamp(16px, 16px, 22px)",
+          border: "none",
+          cursor: "pointer",
+          background: "linear-gradient(180deg,#1a1a1a 0%,#0a0a0a 100%)",
           boxShadow: playing
-            ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.7)"
-            : "inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08)",
-          transition:
-            "width 0.28s cubic-bezier(0.65,0,0.35,1), background 0.35s ease, box-shadow 0.35s ease",
+            ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px 2px rgba(255,60,60,0.55), 0 4px 12px rgba(0,0,0,0.3)"
+            : "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px 1px rgba(255,255,255,0.28), 0 4px 12px rgba(0,0,0,0.18)",
+          transform: pressed ? "scale(0.98)" : "scale(1)",
+          transition: "box-shadow 0.35s ease, transform 0.12s ease",
         }}
       >
-        <DotGroup index={0} dotColor="#0f0f0f" />
-        <DotGroup index={1} dotColor="#0f0f0f" />
-        <DotGroup index={2} dotColor="#0f0f0f" />
-        <DotGroup index={3} dotColor="#0f0f0f" />
-        <DotGroup index={4} dotColor="#0f0f0f" />
-      </span>
+        {/* slab aksen di kiri (tidak menutupi teks saat melebar karena teks z lebih tinggi) */}
+        <span
+          aria-hidden="true"
+          className="mb-slab"
+          style={{
+            position: "absolute",
+            top: 4,
+            bottom: 4,
+            left: pressed ? "calc(100% - 34px)" : 4,
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: 6,
+            overflow: "hidden",
+            borderRadius: "clamp(12px, 12px, 18px)",
+            paddingLeft: 6,
+            paddingRight: 6,
+            background: `linear-gradient(180deg, ${accentFrom} 0%, ${accentTo} 100%)`,
+            boxShadow: playing
+              ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.7)"
+              : "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,255,255,0.5)",
+          }}
+        >
+          <DotGroup index={0} dotColor="#0f0f0f" />
+          <DotGroup index={1} dotColor="#0f0f0f" />
+          <DotGroup index={2} dotColor="#0f0f0f" />
+          <DotGroup index={3} dotColor="#0f0f0f" />
+          <DotGroup index={4} dotColor="#0f0f0f" />
+        </span>
 
-      <span className="mb-noise" aria-hidden="true" />
-    </button>
+        <span
+          style={{
+            position: "relative",
+            zIndex: 20,
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: "#ffffff",
+            textShadow: "0 1px 2px rgba(0,0,0,.5)",
+          }}
+        >
+          {label}
+        </span>
+      </button>
+    </>
   );
 }

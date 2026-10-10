@@ -4,6 +4,7 @@ import AetherHero from "../AetherHero";
 import PixelIntro, { type TextEntry } from "../PixelIntro";
 import GridVideos from "../GridVideos";
 import useGridCols from "../useGridCols";
+import MusicButton from "../MusicButton";
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
@@ -97,6 +98,9 @@ export default function Test2Page() {
         {/* Sekuens pixel: 1975 -> COMING SOON -> [IG] Femaandara, loop */}
         <PixelIntro loop onDone={() => {}} texts={SEQ} cols={cols} />
       </div>
+
+      {/* Tombol musik play/stop, pojok kanan bawah */}
+      <MusicButton />
     </main>
   );
 }

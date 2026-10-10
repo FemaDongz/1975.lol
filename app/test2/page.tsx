@@ -10,7 +10,7 @@ export default function Test2Page() {
         width: "100%",
         height: "100dvh",
         overflow: "hidden",
-        background: "#0a0a0c",
+        background: "#f4f2ed",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

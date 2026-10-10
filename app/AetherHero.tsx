@@ -59,12 +59,10 @@ void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
   float s=12., e=9e-4;
-  // bingkai proporsional: margin sama di kanan-kiri-atas-bawah, responsif
+  // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
   vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun
-  float edge = max(abs(nrm.x), abs(nrm.y));
-  // blur tepi yang halus: fade lebar + lantai, sisi tidak pernah terpotong
-  float mask = max(0.3, 1.0 - smoothstep(0.55, 1.15, edge));
+  float mask = 1.0; // tanpa vignette: grid + glow full-bleed sampai tepi
   // grid di dalam bingkai saja
   float grid = e/(sin(uv.x*s)*cos(uv.y*s));
   col += grid * mask;

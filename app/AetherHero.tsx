@@ -27,7 +27,7 @@ export type AetherHeroProps = {
   ariaLabel?: string;
 };
 
-/* Default fragment shader (your original) */
+/* Default fragment shader — monochrome flow + film grain (no RGB lasers) */
 const DEFAULT_FRAG = `#version 300 es
 precision highp float;
 out vec4 O;
@@ -36,33 +36,44 @@ uniform vec2 resolution;
 #define FC gl_FragCoord.xy
 #define R resolution
 #define T time
-#define S smoothstep
 #define MN min(R.x,R.y)
+float hash(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
 float pattern(vec2 uv) {
   float d=.0;
   for (float i=.0; i<3.; i++) {
     uv.x+=sin(T*(1.+i)+uv.y*1.5)*.2;
     d+=.005/abs(uv.x);
   }
-  return d;	
+  return d;
 }
-vec3 scene(vec2 uv) {
-  vec3 col=vec3(0);
+float scene(vec2 uv) {
+  float col=0.;
   uv=vec2(atan(uv.x,uv.y)*2./6.28318,-log(length(uv))+T);
   for (float i=.0; i<3.; i++) {
-    int k=int(mod(i,3.));
-    col[k]+=pattern(uv+i*6./MN);
+    col+=pattern(uv+i*6./MN);
   }
   return col;
 }
 void main() {
   vec2 uv=(FC-.5*R)/MN;
-  vec3 col=vec3(0);
+  float col=0.;
   float s=12., e=9e-4;
   col+=e/(sin(uv.x*s)*cos(uv.y*s));
   uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
   col+=scene(uv);
-  O=vec4(col,1.);
+  // monochrome: bungkus ke abu-abu, hilangkan pemisahan channel RGB
+  float g = clamp(col, 0.0, 1.0);
+  // film grain halus
+  float n = hash(FC + fract(T * 3.0) * 311.0) - 0.5;
+  g += n * 0.06;
+  // vignette lembut
+  float vig = 1.0 - 0.35 * smoothstep(0.6, 1.4, length(uv));
+  g *= vig;
+  O=vec4(vec3(g), 1.0);
 }`;
 
 /* Minimal passthrough vertex shader */

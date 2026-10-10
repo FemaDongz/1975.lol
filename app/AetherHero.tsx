@@ -149,7 +149,15 @@ export default function AetherHero({
   // Init GL
   useEffect(() => {
     const canvas = canvasRef.current!;
-    const gl = canvas.getContext('webgl2', { alpha: true, antialias: true });
+    const isMobile =
+      typeof window !== "undefined" &&
+      (window.matchMedia("(pointer: coarse)").matches ||
+        window.innerWidth < 640);
+    const dprCap = isMobile ? 1 : dprMax;
+    const gl = canvas.getContext("webgl2", {
+      alpha: true,
+      antialias: !isMobile,
+    });
     if (!gl) return;
     glRef.current = gl;
 
@@ -184,7 +192,7 @@ export default function AetherHero({
 
     // Size & DPR
     const fit = () => {
-      const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, dprMax));
+      const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, dprCap));
       const rect = canvas.getBoundingClientRect();
       const cssW = Math.max(1, rect.width);
       const cssH = Math.max(1, rect.height);
@@ -201,21 +209,33 @@ export default function AetherHero({
     ro.observe(canvas);
     window.addEventListener('resize', onResize);
 
+    // RAF — di HP dibatasi ~40fps biar hemat (60fps di desktop)
+    let visible = !document.hidden;
+    const onVis = () => {
+      visible = !document.hidden;
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const minFrame = isMobile ? 1000 / 40 : 0;
+    let lastDraw = 0;
     // RAF
     const loop = (now: number) => {
+      rafRef.current = requestAnimationFrame(loop);
+      if (!visible) return;
+      if (minFrame && now - lastDraw < minFrame) return;
+      lastDraw = now;
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(prog);
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       if (uniResRef.current) gl.uniform2f(uniResRef.current, canvas.width, canvas.height);
       if (uniTimeRef.current) gl.uniform1f(uniTimeRef.current, now * 1e-3);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
 
     // Cleanup
     return () => {
       ro.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener('resize', onResize);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (bufRef.current) gl.deleteBuffer(bufRef.current);

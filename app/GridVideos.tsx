@@ -2,48 +2,38 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// 2 video lokal tampil BERSAMAAN di sel grid background (7 kolom, baris genap
-// terpusat seperti shader). Tiap slot fade-out → pindah sel (tidak sama /
-// tidak berdampingan) + ganti file → fade-in, berulang terus tanpa henti.
-// Saturasi 20%, muted autoplay, tepi radial blur.
+// Video lokal di sel grid background. Kolom & jumlah slot menyesuaikan
+// ukuran layar (mobile: kolom lebih sedikit, slot lebih sedikit). Tiap slot
+// fade-out → pindah sel (tidak sama / bersebelahan) + ganti file → fade-in,
+// terus-menerus. Saturasi 0, vignette per-sel, muted autoplay.
 //
-// Ganti FILES dengan 5 video sample (taruh di public/videos/).
+// Ganti/isi FILES dengan video di public/videos/.
 
-const FILES = ["s1.mp4", "s2.mp4", "s3.mp4", "s4.mp4", "s5.mp4"];
+const FILES = [
+  "s1.mp4", "s2.mp4", "s3.mp4", "s4.mp4", "s5.mp4",
+  "s6.mp4", "s7.mp4", "s8.mp4", "s9.mp4", "s10.mp4",
+];
 
-const COLS = 7;
-const SLOTS = 3;
+// 7 kolom desktop, 5 kolom mobile (proporsi grid shader menyesuaikan).
+const COLS_DESKTOP = 7;
+const COLS_MOBILE = 5;
+const MOBILE_MAX = 640;
+
 const SHOW_MS = 5000;
 const FADE_MS = 800;
 
 const rand = (n: number) => Math.floor(Math.random() * n);
 type Cell = { c: number; r: number };
 
-function pickCell(rows: number, used: Cell[]): Cell {
-  for (let t = 0; t < 80; t++) {
-    const c = rand(COLS);
-    const r = rand(rows);
-    const clash = used.some(
-      (u) =>
-        (u.c === c && u.r === r) ||
-        Math.abs(u.c - c) + Math.abs(u.r - r) === 1
-    );
-    if (!clash) return { c, r };
-  }
-  return { c: rand(COLS), r: rand(rows) };
-}
-
-type Slot = { pos: Cell; file: string; vis: number };
-
 export default function GridVideos() {
   const rootRef = useRef<HTMLDivElement>(null);
   const refs = useRef<(HTMLVideoElement | null)[]>([]);
-  const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0 });
-  const [slots, setSlots] = useState<Slot[]>([]);
+  const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0, cols: COLS_DESKTOP, slots: 3 });
   const geoRef = useRef(geo);
   geoRef.current = geo;
+  const [slots, setSlots] = useState<{ pos: Cell; file: string; vis: number; cyc: number }[]>([]);
 
-  // 1) ukur grid
+  // ukur grid + tentukan kolom & jumlah slot adaptif
   useEffect(() => {
     const parent = rootRef.current?.parentElement;
     if (!parent) return;
@@ -51,68 +41,81 @@ export default function GridVideos() {
       const W = parent.clientWidth;
       const H = parent.clientHeight;
       if (!W || !H) return;
-      const cell = W / COLS;
+      const mobile = W < MOBILE_MAX;
+      const cols = mobile ? COLS_MOBILE : COLS_DESKTOP;
+      const cell = W / cols;
       const rows = Math.max(2, 2 * Math.round(H / cell / 2));
-      setGeo({ H, cell, rows });
+      // banyak sel -> lebih banyak slot (mobile dibatasi biar ringan)
+      const maxSlots = mobile ? 3 : 5;
+      const slots = Math.max(2, Math.min(maxSlots, Math.floor((cols * rows) / 8)));
+      setGeo({ H, cell, rows, cols, slots });
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // 2) jalankan slot: init + loop sendiri-sendiri (fase beda), selalu 2 tampil
+  // init slot saat ukuran berubah
   useEffect(() => {
-    const rows = geoRef.current.rows;
-    if (!rows || slots.length) return;
+    if (!geo.rows || !geo.slots) return;
     const init: Cell[] = [];
-    const arr: Slot[] = [];
-    for (let i = 0; i < SLOTS; i++) {
-      const p = pickCell(rows, init);
+    const arr = Array.from({ length: geo.slots }).map(() => {
+      const c = rand(geo.cols);
+      const r = rand(geo.rows);
+      const p = { c, r };
       init.push(p);
-      arr.push({ pos: p, file: FILES[rand(FILES.length)], vis: 0 });
-    }
+      return { pos: p, file: FILES[rand(FILES.length)], vis: 0, cyc: -1 };
+    });
     setSlots(arr);
-  }, [geo.rows, slots.length]);
+    refs.current = new Array(geo.slots).fill(null);
+  }, [geo.rows, geo.cols, geo.slots]);
 
-  // 3) tiap slot: siklus independen, mulai dengan delay berbeda
+  const pickCell = (used: Cell[]): Cell => {
+    const { cols, rows } = geoRef.current;
+    for (let t = 0; t < 60; t++) {
+      const c = rand(cols);
+      const r = rand(rows);
+      const clash = used.some(
+        (u) =>
+          (u.c === c && u.r === r) ||
+          Math.abs(u.c - c) + Math.abs(u.r - r) === 1
+      );
+      if (!clash) return { c, r };
+    }
+    return { c: rand(cols), r: rand(rows) };
+  };
+
+  // siklus animasi: pakai interval (bukan rAF) biar hemat CPU
   useEffect(() => {
-    if (slots.length !== SLOTS) return;
-    const start = performance.now();
-    let raf = 0;
-    const offset = [0, Math.floor(SHOW_MS / 3), Math.floor((SHOW_MS * 2) / 3)];
-
-    const loop = () => {
-      raf = requestAnimationFrame(loop);
-      const t = performance.now() - start;
+    if (slots.length !== geo.slots || !geo.slots) return;
+    const step = () => {
       setSlots((prev) => {
-        if (prev.length !== SLOTS) return prev;
-        let changed = false;
+        if (prev.length !== geoRef.current.slots) return prev;
+        const now = Date.now();
         const next = prev.map((s, i) => {
-          const phase = ((t + offset[i]) % SHOW_MS) / SHOW_MS;
-          const vis = phase < 0.8 ? 1 : 0; // 20% terakhir fade-out
-          // saat mulai siklus baru (fase lewat 0), pindah sel + ganti file
-          const cycleIndex = Math.floor((t + offset[i]) / SHOW_MS);
-          const seen = (s as Slot & { cyc?: number }).cyc ?? -1;
-          if (cycleIndex !== seen) {
+          const phaseStart = s.cyc < 0 ? now : s.cyc;
+          const elapsed = now - phaseStart;
+          const vis = elapsed < SHOW_MS - FADE_MS ? 1 : elapsed < SHOW_MS ? 0 : 0;
+          if (elapsed >= SHOW_MS) {
             const others = prev.filter((_, k) => k !== i).map((x) => x.pos);
-            const np = pickCell(geoRef.current.rows, others);
-            changed = true;
-            return { pos: np, file: FILES[rand(FILES.length)], vis, cyc: cycleIndex } as Slot;
+            const np = pickCell(others);
+            return {
+              pos: np,
+              file: FILES[rand(FILES.length)],
+              vis: 0,
+              cyc: now,
+            };
           }
-          if (s.vis !== vis) {
-            changed = true;
-            return { ...s, vis };
-          }
-          return s;
+          return s.vis !== vis ? { ...s, vis } : s;
         });
-        return changed ? next : prev;
+        return next;
       });
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [slots.length]);
+    const id = setInterval(step, 260);
+    return () => clearInterval(id);
+  }, [slots.length, geo.slots]);
 
-  // play video tiap kali vis jadi 1
+  // play video saat muncul
   useEffect(() => {
     slots.forEach((s, i) => {
       if (s.vis > 0.5) refs.current[i]?.play().catch(() => {});
@@ -132,15 +135,12 @@ export default function GridVideos() {
             style={{
               position: "absolute",
               left: s.pos.c * geo.cell,
-              top:
-                geo.H / 2 -
-                (geo.rows * geo.cell) / 2 +
-                s.pos.r * geo.cell,
+              top: geo.H / 2 - (geo.rows * geo.cell) / 2 + s.pos.r * geo.cell,
               width: geo.cell,
               height: geo.cell,
               opacity: s.vis,
               transition: `opacity ${FADE_MS}ms ease`,
-              filter: "saturate(0.2)",
+              filter: "saturate(0)",
               pointerEvents: "none",
             }}
           >
@@ -153,7 +153,7 @@ export default function GridVideos() {
               loop
               playsInline
               autoPlay
-              preload="auto"
+              preload="none"
               style={{
                 position: "absolute",
                 inset: 0,
@@ -163,21 +163,13 @@ export default function GridVideos() {
                 display: "block",
               }}
             />
+            {/* vignette kotak sesuai grid */}
             <div
               style={{
                 position: "absolute",
                 inset: 0,
                 background:
-                  "radial-gradient(120% 120% at 50% 50%, transparent 42%, rgba(0,0,0,.28) 72%, rgba(0,0,0,.7) 100%)",
-                pointerEvents: "none",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                boxShadow:
-                  "inset 2px 2px 3px rgba(255,255,255,.18), inset -3px -3px 6px rgba(0,0,0,.5)",
+                  "radial-gradient(130% 130% at 50% 50%, transparent 45%, rgba(0,0,0,.35) 78%, rgba(0,0,0,.85) 100%)",
                 pointerEvents: "none",
               }}
             />

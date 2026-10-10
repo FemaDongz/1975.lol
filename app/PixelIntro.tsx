@@ -408,7 +408,7 @@ export default function PixelIntro({
 
     // Ukuran pixel teks proporsional grid background (7 sel selebar canvas):
     // ambil pembagi bulat dari sel background supaya selaras.
-    function snappedSize(cols: number, rows: number, wMul = 0.94, hMul = 0.6) {
+    function snappedSize(cols: number, rows: number, wMul = 0.7, hMul = 0.45) {
       const bgCell = canvas.width / 7;
       if (!(bgCell > 0)) return 5;
       const fit =
@@ -486,7 +486,7 @@ export default function PixelIntro({
         const totalRows =
           infos.reduce((a, b) => a + b.rows, 0) + gapRows * (infos.length - 1);
         const size = Math.min(
-          ...infos.map((b) => snappedSize(b.cols, totalRows, 0.9, 0.66))
+          ...infos.map((b) => snappedSize(b.cols, totalRows, 0.7, 0.5))
         );
         return layoutLines(entry.stacked, size, gapRows);
       }

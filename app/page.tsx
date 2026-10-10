@@ -35,7 +35,7 @@ const SEQ: TextEntry[] = [
   {
     single: TEXT_IG_SINGLE,
     stacked: [
-      ["[", "I", "N", "S", "T", "A", "G", "R", "A", "M", "]"],
+      ["[", "I", "G", "]"],
       ["F", "e", "m", "a", "a", "n", "d", "a", "r", "a"],
     ],
   },

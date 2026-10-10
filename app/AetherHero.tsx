@@ -58,34 +58,23 @@ vec3 scene(vec2 uv) {
 void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
-  // grid PAS di semua sisi: margin sama rata, jumlah sel genap sehingga
-  // garis jatuh tepat di tepi area (simetris, tidak kepotong asal)
-  vec2 fullSize = vec2(R.x, R.y) / MN;
-  float mgEdge = 0.08;
-  vec2 areaSize = fullSize - 2.0 * mgEdge;
-  float cell0 = max(areaSize.x, areaSize.y) / 8.0;
-  float nxCount = max(2.0, 2.0 * floor(areaSize.x / cell0 / 2.0 + 0.5));
-  float cellSize = areaSize.x / nxCount;
-  float nyCount = max(2.0, 2.0 * floor(areaSize.y / cellSize / 2.0));
-  vec2 areaHalf = vec2(nxCount * cellSize, nyCount * cellSize) * 0.5;
-  vec2 absUv = abs(uv);
-  float gridMask = (1.0 - smoothstep(areaHalf.x - 0.015, areaHalf.x + 0.015, absUv.x))
-                 * (1.0 - smoothstep(areaHalf.y - 0.015, areaHalf.y + 0.015, absUv.y));
-  // garis grid tegas (fract, anti hilang): jarak ke garis terdekat
-  vec2 cellUv = absUv / cellSize;
+  // grid full-bleed simetris tengah: sel kotak ~8 di sisi panjang,
+  // terpusat sehingga potongan tepi selalu simetris di semua sisi
+  vec2 fullLen = vec2(R.x, R.y) / MN;
+  float cellSize = max(fullLen.x, fullLen.y) / 8.0;
+  vec2 cellUv = abs(uv) / cellSize;
   vec2 fLine = abs(fract(cellUv + 0.5) - 0.5) * cellSize;
   float fw = fwidth(min(fLine.x, fLine.y)) + 1e-4;
-  float lineGlow = 1.0 - smoothstep(0.0, fw * 1.5, min(fLine.x, fLine.y));
+  float lineGlow = 1.0 - smoothstep(0.0, fw * 1.2, min(fLine.x, fLine.y));
   // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
   vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun
-  float mask = 1.0; // tanpa vignette: glow full-bleed sampai tepi
-  float grid = lineGlow * 0.85;
-  col += grid * gridMask;
+  float grid = lineGlow * 0.5;
+  col += grid;
   // gradient glow putih dari bawah sampai atas + shimmer halus
   float gg = 0.3 + 0.7 * pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 1.5);
   gg *= 0.85 + 0.15 * sin(T * 0.7 + nrm.y * 3.0);
-  col += vec3(1.0) * gg * 0.22 * mask;
+  col += vec3(1.0) * gg * 0.22;
   // noise yang jelas kelihatan
   float nz = fract(sin(dot(FC + fract(T * 3.0) * 311.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
   col += vec3(nz * 0.14);

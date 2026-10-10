@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Silkscreen } from "next/font/google";
 import "./globals.css";
+
+const pixel = Silkscreen({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-pixel",
+  display: "swap",
+});
 
 const SITE_URL = "https://1975.lol";
 const DESCRIPTION = "Portofolio Web Fema Andara Haqi";
@@ -62,7 +70,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={pixel.variable}>
       <body>{children}</body>
     </html>
   );

@@ -1,7 +1,10 @@
-"use client";
+﻿"use client";
 
 import AetherHero from "./AetherHero";
 import PixelIntro, { type TextEntry } from "./PixelIntro";
+import GridVideos from "./GridVideos";
+import useGridCols from "./useGridCols";
+import MusicControl from "./MusicControl";
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
@@ -42,6 +45,7 @@ const SEQ: TextEntry[] = [
 ];
 
 export default function Test2Page() {
+  const cols = useGridCols();
   return (
     <main
       style={{
@@ -74,7 +78,10 @@ export default function Test2Page() {
           ctaLabel=""
           overlayGradient="linear-gradient(180deg, #00000055, transparent 45%, transparent)"
           height="100%"
+          cols={cols}
         />
+        {/* Video YouTube random di area grid, ganti tiap 5 detik */}
+        <GridVideos cols={cols} />
         {/* Vignette rounded halus (mengikuti lengkung container) */}
         <div
           aria-hidden="true"
@@ -89,7 +96,20 @@ export default function Test2Page() {
           }}
         />
         {/* Sekuens pixel: 1975 -> COMING SOON -> [IG] Femaandara, loop */}
-        <PixelIntro loop onDone={() => {}} texts={SEQ} />
+        <PixelIntro loop onDone={() => {}} texts={SEQ} cols={cols} />
+      </div>
+
+      {/* Tombol musik PLAY/STOP (liquid metal), pojok kanan bawah */}
+      <div
+        style={{
+          position: "fixed",
+          right: "calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-right, 0px))",
+          bottom:
+            "max(calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-bottom, 0px)), 30px)",
+          zIndex: 60,
+        }}
+      >
+        <MusicControl />
       </div>
     </main>
   );

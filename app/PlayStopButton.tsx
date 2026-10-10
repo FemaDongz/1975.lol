@@ -197,6 +197,7 @@ export const AntiMetalButton = React.forwardRef<
           fontSize: 13,
           fontWeight: 700,
           letterSpacing: "0.06em",
+          fontFamily: "var(--font-pixel), monospace",
           color: theme.textColor,
           textShadow: theme.textGlow,
           transition: "color 0.2s ease, text-shadow 0.2s ease",

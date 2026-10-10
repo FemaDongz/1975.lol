@@ -2,32 +2,34 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// 5 video muncul BERSAMAAN (statis, pas di sel grid background). Tidak
-// ganti-ganti sel/file — cukup fade-in sekali. Saturasi 0, vignette per-sel,
-// muted autoplay. Ringan: tanpa interval, tanpa re-render berkala.
-//
-// Ganti/isi FILES dengan video di public/videos/.
+// 5 slot video di sel grid shader (7 kolom — HARUS sama supaya pas).
+// Tiap slot BERJALAN SENDIRI (fase beda): fade-out → pindah sel + ganti file
+// (dari 10 video random) → fade-in, berulang. Jadi hampir selalu terlihat
+// 5 video sekaligus, tapi tidak muncul/hilang bersamaan. Saturasi 0 +
+// vignette per-sel, muted autoplay.
 
 const FILES = [
   "s1.mp4", "s2.mp4", "s3.mp4", "s4.mp4", "s5.mp4",
   "s6.mp4", "s7.mp4", "s8.mp4", "s9.mp4", "s10.mp4",
 ];
 
-const COLS_DESKTOP = 7;
-const COLS_MOBILE = 5;
-const MOBILE_MAX = 640;
+const COLS = 7; // samain grid shader
 const SLOTS = 5;
+const SHOW_MS = 5000;
+const FADE_MS = 800;
 
 const rand = (n: number) => Math.floor(Math.random() * n);
 type Cell = { c: number; r: number };
+type Slot = { pos: Cell; file: string; vis: number; born: number };
 
 export default function GridVideos() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0, cols: COLS_DESKTOP });
-  const [visible, setVisible] = useState(false);
-  const [cells, setCells] = useState<{ pos: Cell; file: string }[]>([]);
+  const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0 });
+  const geoRef = useRef(geo);
+  geoRef.current = geo;
+  const [slots, setSlots] = useState<Slot[]>([]);
 
-  // ukur grid
+  // ukur grid (kolom tetap 7, samain shader)
   useEffect(() => {
     const parent = rootRef.current?.parentElement;
     if (!parent) return;
@@ -35,44 +37,76 @@ export default function GridVideos() {
       const W = parent.clientWidth;
       const H = parent.clientHeight;
       if (!W || !H) return;
-      const cols = W < MOBILE_MAX ? COLS_MOBILE : COLS_DESKTOP;
-      const cell = W / cols;
+      const cell = W / COLS;
       const rows = Math.max(2, 2 * Math.round(H / cell / 2));
-      setGeo({ H, cell, rows, cols });
+      setGeo({ H, cell, rows });
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // pilih 5 sel sekali (tidak berdampingan) + file acak, lalu fade-in
-  useEffect(() => {
-    if (!geo.rows) return;
-    const used: Cell[] = [];
-    const arr: { pos: Cell; file: string }[] = [];
-    for (let i = 0; i < SLOTS; i++) {
-      let pos: Cell | null = null;
-      for (let t = 0; t < 80; t++) {
-        const c = rand(geo.cols);
-        const r = rand(geo.rows);
-        const clash = used.some(
-          (u) =>
-            (u.c === c && u.r === r) ||
-            Math.abs(u.c - c) + Math.abs(u.r - r) === 1
-        );
-        if (!clash) {
-          pos = { c, r };
-          break;
-        }
-      }
-      const p = pos ?? { c: rand(geo.cols), r: rand(geo.rows) };
-      used.push(p);
-      arr.push({ pos: p, file: FILES[(i * 2) % FILES.length] });
+  const pickCell = (used: Cell[]): Cell => {
+    const rows = geoRef.current.rows || 2;
+    for (let t = 0; t < 80; t++) {
+      const c = rand(COLS);
+      const r = rand(rows);
+      const clash = used.some(
+        (u) =>
+          (u.c === c && u.r === r) || Math.abs(u.c - c) + Math.abs(u.r - r) === 1
+      );
+      if (!clash) return { c, r };
     }
-    setCells(arr);
-    const t = setTimeout(() => setVisible(true), 80);
-    return () => clearTimeout(t);
-  }, [geo.rows, geo.cols]);
+    return { c: rand(COLS), r: rand(rows) };
+  };
+
+  // init 5 slot dengan fase tersebar (born berbeda jauh)
+  useEffect(() => {
+    if (!geo.rows || slots.length) return;
+    const used: Cell[] = [];
+    const now = performance.now();
+    const arr: Slot[] = [];
+    for (let i = 0; i < SLOTS; i++) {
+      const p = pickCell(used);
+      used.push(p);
+      arr.push({
+        pos: p,
+        file: FILES[rand(FILES.length)],
+        vis: 1,
+        born: now - Math.floor((SHOW_MS / SLOTS) * i),
+      });
+    }
+    setSlots(arr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geo.rows, slots.length]);
+
+  // tiap slot siklus sendiri (interval ringan)
+  useEffect(() => {
+    if (slots.length !== SLOTS) return;
+    const id = setInterval(() => {
+      const now = performance.now();
+      setSlots((prev) => {
+        let changed = false;
+        const next = prev.map((s, i) => {
+          const age = now - s.born;
+          const vis = age < SHOW_MS - FADE_MS ? 1 : age < SHOW_MS ? 0 : 0;
+          if (age >= SHOW_MS) {
+            const others = prev.filter((_, k) => k !== i).map((x) => x.pos);
+            const np = pickCell(others);
+            changed = true;
+            return { pos: np, file: FILES[rand(FILES.length)], vis: 0, born: now };
+          }
+          if (s.vis !== vis) {
+            changed = true;
+            return { ...s, vis };
+          }
+          return s;
+        });
+        return changed ? next : prev;
+      });
+    }, 200);
+    return () => clearInterval(id);
+  }, [slots.length]);
 
   return (
     <div
@@ -81,7 +115,7 @@ export default function GridVideos() {
       style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none" }}
     >
       {geo.cell > 0 &&
-        cells.map((s, i) => (
+        slots.map((s, i) => (
           <div
             key={i}
             style={{
@@ -90,8 +124,8 @@ export default function GridVideos() {
               top: geo.H / 2 - (geo.rows * geo.cell) / 2 + s.pos.r * geo.cell,
               width: geo.cell,
               height: geo.cell,
-              opacity: visible ? 1 : 0,
-              transition: "opacity 900ms ease",
+              opacity: s.vis,
+              transition: `opacity ${FADE_MS}ms ease`,
               filter: "saturate(0)",
               pointerEvents: "none",
             }}

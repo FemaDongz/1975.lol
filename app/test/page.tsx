@@ -10,7 +10,7 @@ export default function TestPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#000",
+        background: "#03030b",
         padding: "clamp(24px, 8vh, 120px) 0",
       }}
     >
@@ -23,15 +23,6 @@ export default function TestPage() {
           grid={false}
           grain={false}
           height="70svh"
-          intensity={1.35}
-          palette={{
-            background: "#050300",
-            blue: "#3a2600",
-            violet: "#b87400",
-            magenta: "#ffb020",
-            cyan: "#ffe08a",
-            gold: "#fff3c4",
-          }}
         />
       </div>
     </div>

@@ -2,21 +2,17 @@
 
 import * as React from "react";
 
-// Tombol musik — struktur persis AntiMetalButton:
-//   teks di KANAN, grup titik (chevron) di slab kiri.
-// Perilaku:
-//   - lebar menyesuaikan panjang teks
-//   - normal: slab putih glow (dot hitam)
-//   - saat klik (play): slab GESER melebar ke kanan, lalu BALIK sendiri
-//     (tanpa klik) -> baru mode STOP (merah) + teks "Stop"
-//   - klik lagi: kembali ke normal (play) dengan animasi geser
-//   - rounded mengikuti sudut frame + gap dari bawah & sisi
+// Tombol musik bergaya AntiMetalButton.
+//   - teks di KANAN (tetap terlihat, tidak tertutup slab)
+//   - slab + 1 pack dot di KIRI; saat klik slab geser melebar lalu balik
+//   - PLAY = putih glow ; STOP (nyala) = merah glow + teks "Stop"
+//   - rounded + gap dari sisi kanan & bawah (relatif frame)
 
 const CDN_SRC =
   "https://cdn.jsdelivr.net/gh/FemaDongz/1975.lol@main/public/audio/about-you.mp3";
 const LOCAL_SRC = "/audio/about-you.mp3";
 
-const SLIDE_MS = 420; // durasi animasi geser
+const SLIDE_MS = 420;
 
 function DotGroup({ index, dotColor }: { index: number; dotColor: string }) {
   const base = index * 0.12;
@@ -59,7 +55,7 @@ function DotGroup({ index, dotColor }: { index: number; dotColor: string }) {
 export default function MusicButton() {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = React.useState(false);
-  const [slideOpen, setSlideOpen] = React.useState(false); // slab melebar
+  const [slideOpen, setSlideOpen] = React.useState(false);
   const [useLocal, setUseLocal] = React.useState(false);
   const timers = React.useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -88,20 +84,19 @@ export default function MusicButton() {
     const a = audioRef.current;
     if (!a) return;
     clearTimers();
-    if (a.paused) {
-      a.play().catch(() => {});
-      // geser melebar -> balik sendiri
-      setSlideOpen(true);
-      timers.current.push(setTimeout(() => setSlideOpen(false), SLIDE_MS));
-    } else {
-      a.pause();
-      setSlideOpen(true);
-      timers.current.push(setTimeout(() => setSlideOpen(false), SLIDE_MS));
-    }
+    if (a.paused) a.play().catch(() => {});
+    else a.pause();
+    setSlideOpen(true);
+    timers.current.push(setTimeout(() => setSlideOpen(false), SLIDE_MS));
   };
 
-  const accentFrom = playing ? "#ff4d4d" : "#ffffff";
-  const accentTo = playing ? "#e01b1b" : "#e6e6e6";
+  // PLAY = putih glow ; STOP = merah glow
+  const slab = playing
+    ? "linear-gradient(180deg,#ff4d4d 0%,#e01b1b 100%)"
+    : "linear-gradient(180deg,#ffffff 0%,#e2e2e2 100%)";
+  const slabGlow = playing
+    ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.75)"
+    : "inset 0 1px 0 rgba(255,255,255,0.6), 0 0 12px rgba(255,255,255,0.6)";
   const label = playing ? "Stop" : "Play";
 
   return (
@@ -131,16 +126,18 @@ export default function MusicButton() {
         aria-label={playing ? "Stop music" : "Play music"}
         style={{
           position: "fixed",
-          right: "calc(clamp(6px, 6px, 10px) + env(safe-area-inset-right, 0px))",
+          // gap dari sisi frame: 6px HP / 10px desktop + margin 12px + safe-area
+          right:
+            "calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-right, 0px))",
           bottom:
-            "max(calc(clamp(6px, 6px, 10px) + env(safe-area-inset-bottom, 0px)), 18px)",
+            "max(calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-bottom, 0px)), 30px)",
           zIndex: 60,
           display: "inline-flex",
           alignItems: "center",
           height: 44,
           width: "auto",
-          minWidth: 108,
-          padding: "0 18px",
+          minWidth: 112,
+          padding: "0 18px 0 52px", // ruang kiri buat slab dot
           overflow: "hidden",
           borderRadius: "clamp(16px, 16px, 22px)",
           border: "none",
@@ -152,24 +149,7 @@ export default function MusicButton() {
           transition: "box-shadow 0.35s ease",
         }}
       >
-        {/* teks di KANAN (nempel dot slab) */}
-        <span
-          style={{
-            position: "relative",
-            zIndex: 20,
-            marginLeft: "auto",
-            fontSize: 14,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            color: "#ffffff",
-            textShadow: "0 1px 2px rgba(0,0,0,.5)",
-            paddingLeft: 10,
-          }}
-        >
-          {label}
-        </span>
-
-        {/* slab + titik: diam = kecil di kiri ; klik = geser melebar lalu balik */}
+        {/* slab + 1 pack dot di kiri; melebar saat klik lalu balik */}
         <span
           aria-hidden="true"
           className="mb-slab"
@@ -182,21 +162,32 @@ export default function MusicButton() {
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-start",
-            gap: 6,
-            width: slideOpen ? "calc(100% - 8px)" : 34,
+            width: slideOpen ? "calc(100% - 8px)" : 36,
             overflow: "hidden",
             borderRadius: "clamp(11px, 11px, 18px)",
             paddingLeft: 8,
             paddingRight: 8,
-            background: `linear-gradient(180deg, ${accentFrom} 0%, ${accentTo} 100%)`,
-            boxShadow: playing
-              ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.7)"
-              : "inset 0 1px 0 rgba(255,255,255,0.5), 0 0 12px rgba(255,255,255,0.6)",
+            background: slab,
+            boxShadow: slabGlow,
           }}
         >
           <DotGroup index={0} dotColor="#0f0f0f" />
-          <DotGroup index={1} dotColor="#0f0f0f" />
-          <DotGroup index={2} dotColor="#0f0f0f" />
+        </span>
+
+        {/* teks di kanan, z di atas slab supaya tidak tertutup */}
+        <span
+          style={{
+            position: "relative",
+            zIndex: 30,
+            marginLeft: "auto",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: "#ffffff",
+            textShadow: "0 1px 2px rgba(0,0,0,.5)",
+          }}
+        >
+          {label}
         </span>
       </button>
     </>

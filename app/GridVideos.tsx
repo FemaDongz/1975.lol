@@ -9,11 +9,11 @@ import { useEffect, useRef, useState } from "react";
 //
 // Ganti FILES dengan 5 video sample (taruh di public/videos/).
 
-const FILES = ["v1.mp4", "v2.mp4", "v3.mp4", "v4.mp4", "v5.mp4"];
+const FILES = ["s1.mp4", "s2.mp4", "s3.mp4", "s4.mp4", "s5.mp4"];
 
 const COLS = 7;
-const SLOTS = 2;
-const SHOW_MS = 4500;
+const SLOTS = 3;
+const SHOW_MS = 5000;
 const FADE_MS = 800;
 
 const rand = (n: number) => Math.floor(Math.random() * n);
@@ -79,7 +79,7 @@ export default function GridVideos() {
     if (slots.length !== SLOTS) return;
     const start = performance.now();
     let raf = 0;
-    const offset = [0, Math.floor(SHOW_MS / 2)];
+    const offset = [0, Math.floor(SHOW_MS / 3), Math.floor((SHOW_MS * 2) / 3)];
 
     const loop = () => {
       raf = requestAnimationFrame(loop);

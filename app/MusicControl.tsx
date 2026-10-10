@@ -96,6 +96,9 @@ export default function MusicControl() {
       onClick={toggle}
       audioLevel={playing ? level : undefined}
       tint={playing ? "#ff2e2e" : undefined}
+      textColor={playing ? "#ff6b6b" : "#ffffff"}
+      glowColor={playing ? "rgba(255,60,60,0.9)" : "rgba(255,255,255,0.85)"}
+      fontFamily="var(--font-serif)"
       width={150}
       radius={22}
     />

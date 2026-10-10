@@ -860,6 +860,12 @@ export interface LiquidMetalButtonProps {
   audioLevel?: number;
   /** Hex color (#RGB, #RRGGBB or #RRGGBBAA) applied to u_colorTint. */
   tint?: string;
+  /** Label color (default dim grey; pass e.g. #fff for bright). */
+  textColor?: string;
+  /** Glow color for the label + button edge. */
+  glowColor?: string;
+  /** Font family for the label. */
+  fontFamily?: string;
 }
 
 // Default metallic tint (grey/blue). Alpha < 1 softens the burn blend.
@@ -874,6 +880,9 @@ export function LiquidMetalButton({
   radius = 100,
   audioLevel,
   tint = DEFAULT_TINT,
+  textColor,
+  glowColor,
+  fontFamily,
 }: LiquidMetalButtonProps) {
   const [hovered, setHovered] = React.useState(false);
   const [pressed, setPressed] = React.useState(false);
@@ -1000,6 +1009,9 @@ export function LiquidMetalButton({
     maxWidth: `${dims.shaderWidth}px`,
     height: `${dims.shaderHeight}px`,
     transition: "width 0.4s ease, height 0.4s ease",
+    boxShadow: glowColor
+      ? `0 0 16px 1px ${glowColor}, 0 0 5px ${glowColor}`
+      : undefined,
   };
 
   const canvasStyle: React.CSSProperties = {
@@ -1075,9 +1087,13 @@ export function LiquidMetalButton({
               <span
                 style={{
                   fontSize: "14px",
-                  color: "#666666",
-                  fontWeight: 400,
-                  textShadow: "0px 1px 2px rgba(0, 0, 0, 0.5)",
+                  color: textColor ?? "#666666",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  fontFamily: fontFamily ?? "var(--font-geist, system-ui, sans-serif)",
+                  textShadow: glowColor
+                    ? `0 0 8px ${glowColor}, 0 0 3px ${glowColor}, 0px 1px 2px rgba(0,0,0,0.5)`
+                    : "0px 1px 2px rgba(0, 0, 0, 0.5)",
                   transition: "all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
                   transform: "scale(1)",
                   whiteSpace: "nowrap",

@@ -2,61 +2,57 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// 5 video lokal (repo + CDN jsDelivr) tampil BERSAMAAN di sel grid background
-// (7 kolom, baris genap terpusat seperti shader): tiap slot fade-out →
-// pindah sel random + ganti file → fade-in, terus-menerus. Saturasi 20%,
-// muted autoplay. Bevel + shadow di sisi video biar terlihat 3D.
+// 2 video lokal tampil BERSAMAAN di sel grid background (7 kolom, baris genap
+// terpusat seperti shader). Tiap slot fade-out → pindah sel random (dijamin
+// tidak sama / tidak berdampingan dengan slot lain) + ganti file → fade-in,
+// berulang terus. Saturasi 20%, muted autoplay, tepi radial blur lembut.
 //
-// Nanti ganti FILES dengan 5 video sample (taruh di public/videos/).
+// Ganti FILES dengan 5 video sample (taruh di public/videos/).
 
 const FILES = ["v1.mp4", "v2.mp4", "v3.mp4", "v4.mp4", "v5.mp4"];
 const CDN = "https://cdn.jsdelivr.net/gh/FemaDongz/1975.lol@main/public/videos";
 
 const COLS = 7;
-const COUNT = 5;
+const SLOTS = 2;
 const SHOW_MS = 5000;
 const FADE_MS = 900;
 
 const rand = (n: number) => Math.floor(Math.random() * n);
+type Cell = { c: number; r: number };
 
-function Slot({
+// pilih sel: tidak sama & tidak bersebelahan (ortogonal) dengan `used`
+function pickCell(rows: number, used: Cell[]): Cell {
+  for (let t = 0; t < 80; t++) {
+    const c = rand(COLS);
+    const r = rand(rows);
+    const clash = used.some(
+      (u) =>
+        (u.c === c && u.r === r) ||
+        Math.abs(u.c - c) + Math.abs(u.r - r) === 1
+    );
+    if (!clash) return { c, r };
+  }
+  return { c: rand(COLS), r: rand(rows) };
+}
+
+function VideoSlot({
+  pos,
+  file,
+  vis,
   cell,
   rows,
-  W,
   H,
+  setVid,
 }: {
+  pos: Cell;
+  file: string;
+  vis: number;
   cell: number;
   rows: number;
-  W: number;
   H: number;
+  setVid: (el: HTMLVideoElement | null) => void;
 }) {
-  const vref = useRef<HTMLVideoElement>(null);
-  const [pos, setPos] = useState(() => ({ c: rand(COLS), r: rand(rows) }));
-  const [file, setFile] = useState(() => FILES[rand(FILES.length)]);
-  const [local, setLocal] = useState(false);
-  const [vis, setVis] = useState(0);
-  const [delay] = useState(() => Math.random() * 1500);
-
-  useEffect(() => {
-    const tIn = setTimeout(() => {
-      setVis(1);
-      vref.current?.play().catch(() => {});
-    }, 120 + delay);
-    const tOut = setTimeout(() => setVis(0), SHOW_MS - FADE_MS + delay);
-    const tNext = setTimeout(() => {
-      setPos({ c: rand(COLS), r: rand(rows) });
-      setFile(FILES[rand(FILES.length)]);
-    }, SHOW_MS + delay);
-    return () => {
-      clearTimeout(tIn);
-      clearTimeout(tOut);
-      clearTimeout(tNext);
-    };
-  }, [file, cell, rows, W, H, delay]);
-
-  const src = local ? `/videos/${file}` : `${CDN}/${file}`;
-  const tilt = pos.c % 2 === 0 ? "rotateY(-5deg)" : "rotateY(5deg)";
-
+  const src = `/videos/${file}`;
   return (
     <div
       style={{
@@ -67,79 +63,61 @@ function Slot({
         height: cell,
         opacity: vis,
         transition: `opacity ${FADE_MS}ms ease`,
-        pointerEvents: "none",
         filter: "saturate(0.2)",
+        pointerEvents: "none",
       }}
     >
+      <video
+        ref={setVid}
+        src={src}
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload="auto"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block",
+        }}
+      />
+      {/* radial blur: tepi lembut merata (tidak miring) */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          transform: `perspective(500px) ${tilt} rotateX(3deg)`,
+          background:
+            "radial-gradient(120% 120% at 50% 50%, transparent 42%, rgba(0,0,0,.28) 72%, rgba(0,0,0,.7) 100%)",
+          pointerEvents: "none",
         }}
-      >
-        {/* bayangan ekstrusi di bawah */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            transform: "translate(7px, 9px)",
-            background: "#000",
-            filter: "blur(7px)",
-            opacity: 0.55,
-            borderRadius: 4,
-          }}
-        />
-        <video
-          ref={vref}
-          src={src}
-          muted
-          loop
-          playsInline
-          autoPlay
-          preload="auto"
-          onError={() => setLocal(true)}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            display: "block",
-            borderRadius: 4,
-          }}
-        />
-        {/* bevel kiri-kanan */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: 4,
-            background:
-              "linear-gradient(90deg, rgba(0,0,0,.5), transparent 18%, transparent 82%, rgba(255,255,255,.28))",
-            pointerEvents: "none",
-          }}
-        />
-        {/* bevel atas-bawah */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: 4,
-            background:
-              "linear-gradient(0deg, rgba(0,0,0,.45), transparent 22%, transparent 78%, rgba(255,255,255,.22))",
-            pointerEvents: "none",
-          }}
-        />
-      </div>
+      />
+      {/* bevel tipis biar terasa menonjol dari grid */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          boxShadow:
+            "inset 2px 2px 3px rgba(255,255,255,.18), inset -3px -3px 6px rgba(0,0,0,.5)",
+          pointerEvents: "none",
+        }}
+      />
     </div>
   );
 }
 
 export default function GridVideos() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [geo, setGeo] = useState({ W: 0, H: 0, cell: 0, rows: 0 });
+  const refs = useRef<(HTMLVideoElement | null)[]>([null, null]);
+  const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0 });
+  const [slots, setSlots] = useState<{ pos: Cell; file: string; vis: number }[]>(
+    []
+  );
+  const cellsRef = useRef<Cell[]>([]);
 
+  // ukur grid
   useEffect(() => {
     const parent = rootRef.current?.parentElement;
     if (!parent) return;
@@ -148,34 +126,89 @@ export default function GridVideos() {
       const H = parent.clientHeight;
       if (!W || !H) return;
       const cell = W / COLS;
-      // baris GENAP supaya tepi sel jatuh tepat di garis shader
       const rows = Math.max(2, 2 * Math.round(H / cell / 2));
-      setGeo({ W, H, cell, rows });
+      setGeo({ H, cell, rows });
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
 
+  // inisialisasi 2 slot begitu ukuran grid diketahui
+  useEffect(() => {
+    if (!geo.cell || slots.length) return;
+    const init: Cell[] = [];
+    const arr = Array.from({ length: SLOTS }).map(() => {
+      const cellPos = pickCell(geo.rows, init);
+      init.push(cellPos);
+      return { pos: cellPos, file: FILES[rand(FILES.length)], vis: 0 };
+    });
+    cellsRef.current = init;
+    setSlots(arr);
+  }, [geo.cell, geo.rows, slots.length]);
+
+  // siklus: fade-out → pindah + ganti → fade-in, tiap slot, terus-menerus
+  useEffect(() => {
+    if (!slots.length) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const tick = () =>
+      slots.forEach((_, i) => {
+        const out = setTimeout(() => {
+          setSlots((prev) => {
+            const next = [...prev];
+            const others = next.filter((_, k) => k !== i).map((s) => s.pos);
+            const np = pickCell(geo.rows, others);
+            cellsRef.current[i] = np;
+            next[i] = {
+              pos: np,
+              file: FILES[rand(FILES.length)],
+              vis: 0,
+            };
+            return next;
+          });
+        }, SHOW_MS * i);
+        const back = setTimeout(() => {
+          setSlots((prev) => {
+            const next = [...prev];
+            next[i] = { ...next[i], vis: 1 };
+            return next;
+          });
+          refs.current[i]?.play().catch(() => {});
+        }, SHOW_MS * i + FADE_MS);
+        timers.push(out, back);
+      });
+    const in0 = setTimeout(() => {
+      setSlots((prev) => prev.map((s) => ({ ...s, vis: 1 })));
+      refs.current.forEach((v) => v?.play().catch(() => {}));
+    }, 60);
+    timers.push(in0);
+    const loop = setInterval(tick, SHOW_MS + FADE_MS);
+    tick();
+    return () => {
+      timers.forEach(clearTimeout);
+      clearInterval(loop);
+    };
+  }, [slots.length, geo.rows]);
+
   return (
     <div
       ref={rootRef}
       aria-hidden="true"
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 1,
-        pointerEvents: "none",
-      }}
+      style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none" }}
     >
       {geo.cell > 0 &&
-        [0, 1, 2, 3, 4].map((i) => (
-          <Slot
+        slots.map((s, i) => (
+          <VideoSlot
             key={i}
+            pos={s.pos}
+            file={s.file}
+            vis={s.vis}
             cell={geo.cell}
             rows={geo.rows}
-            W={geo.W}
             H={geo.H}
+            setVid={(el) => {
+              refs.current[i] = el;
+            }}
           />
         ))}
     </div>

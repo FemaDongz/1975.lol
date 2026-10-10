@@ -63,8 +63,8 @@ void main() {
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
   vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun
   float edge = max(abs(nrm.x), abs(nrm.y));
-  float M = 0.14;
-  float mask = 1.0 - smoothstep(1.0 - M * 2.0, 1.0, edge);
+  // blur tepi yang halus: fade lebar + lantai, sisi tidak pernah terpotong
+  float mask = max(0.3, 1.0 - smoothstep(0.55, 1.15, edge));
   // grid di dalam bingkai saja
   float grid = e/(sin(uv.x*s)*cos(uv.y*s));
   col += grid * mask;

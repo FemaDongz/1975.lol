@@ -76,10 +76,10 @@ void main() {
   cp.y += cos(T * (0.4 + ch * 0.6) + ch * 29.0) * 0.05;
   vec2 cf = fract(uv * 4.0) - 0.5;
   float cd = length(cf - cp);
-  float gate = step(0.6, h21(cid + 5.0));
+  float gate = step(0.35, h21(cid + 5.0));
   float tw = 0.5 + 0.5 * sin(T * (0.6 + ch) + ch * 6.2831);
-  float glint = gate * nearLine * exp(-cd * cd * 160.0) * tw * tw;
-  col += vec3(1.0, 0.97, 0.92) * glint * 0.9;
+  float glint = gate * nearLine * exp(-cd * cd * 60.0) * (0.25 + 0.75 * tw);
+  col += vec3(1.0, 0.97, 0.92) * glint * 1.6;
   uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
   // scene() (busur pelangi) dimatikan — hanya grid gelap yang tampil
   O=vec4(col,1.);

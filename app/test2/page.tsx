@@ -3,6 +3,26 @@
 import AetherHero from "../AetherHero";
 import PixelIntro from "../PixelIntro";
 
+const TEXT_1975 = ["1", "9", "7", "5"];
+const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
+const TEXT_IG = [
+  "I",
+  "G",
+  " ",
+  ":",
+  " ",
+  "F",
+  "e",
+  "m",
+  "a",
+  "a",
+  "n",
+  "d",
+  "a",
+  "r",
+  "a",
+];
+
 export default function Test2Page() {
   return (
     <main
@@ -37,55 +57,12 @@ export default function Test2Page() {
           overlayGradient="linear-gradient(180deg, #00000055, transparent 45%, transparent)"
           height="100%"
         />
-        {/* Animasi pixel 1975 dari laman utama, loop di tengah (glow + noise) */}
-        <PixelIntro loop onDone={() => {}} />
-        {/* Teks tengah di bawah, font Space Grotesk tersimpan */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: "9%",
-            zIndex: 4,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 16,
-            padding: "0 24px",
-            textAlign: "center",
-            color: "#ffffff",
-            fontFamily:
-              "'Space Grotesk', ui-sans-serif, system-ui, sans-serif",
-            pointerEvents: "none",
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: "clamp(0.95rem, 2vw, 1.2rem)",
-              lineHeight: 1.6,
-              opacity: 0.9,
-              textShadow: "0 4px 24px rgba(0,0,0,0.5)",
-              maxWidth: 640,
-            }}
-          >
-            A minimal hero with a living shader background.
-          </p>
-          <span
-            style={{
-              padding: "12px 22px",
-              borderRadius: 12,
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.06))",
-              fontWeight: 600,
-              boxShadow:
-                "inset 0 0 0 1px rgba(255,255,255,.28), 0 10px 30px rgba(0,0,0,.2)",
-              pointerEvents: "auto",
-            }}
-          >
-            Get Started
-          </span>
-        </div>
+        {/* Sekuens pixel: 1975 -> COMING SOON -> IG : Femaandara, loop */}
+        <PixelIntro
+          loop
+          onDone={() => {}}
+          texts={[TEXT_1975, TEXT_CS, TEXT_IG]}
+        />
       </div>
     </main>
   );

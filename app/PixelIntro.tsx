@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-// Intro: animasi pixel "1975" (dark, tanpa ripple).
-// Fase: muncul RGB kedip -> diam putih glow -> padam merah -> fade out -> onDone.
+// Intro / hero pixel: sekuens teks pixel (default: "1975" saja).
+// Tiap teks: muncul RGB kedip -> diam putih glow -> padam merah -> jeda.
+// Props: loop (ulang sekuens terus, untuk hero), texts (daftar teks).
 
 const GLYPHS_1975: Record<string, string[]> = {
   "1": [
@@ -60,6 +61,221 @@ const GLYPHS_1975: Record<string, string[]> = {
   ],
 };
 
+// Huruf kapital 9 baris (COMING SOON, IG, F) + huruf kecil 9 baris + spasi + titik dua.
+const GLYPHS_9: Record<string, string[]> = {
+  C: [
+    " █████",
+    "██████",
+    "██    ",
+    "██    ",
+    "██    ",
+    "██    ",
+    "██    ",
+    "██████",
+    " █████",
+  ],
+  O: [
+    " ████ ",
+    "██████",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██████",
+    " ████ ",
+  ],
+  M: [
+    "██   ██",
+    "███ ███",
+    "███████",
+    "██ █ ██",
+    "██   ██",
+    "██   ██",
+    "██   ██",
+    "██   ██",
+    "██   ██",
+  ],
+  I: ["███", "███", " ██", " ██", " ██", " ██", " ██", "███", "███"],
+  N: [
+    "██   ██",
+    "███  ██",
+    "████ ██",
+    "████ ██",
+    "██ ████",
+    "██ ████",
+    "██  ███",
+    "██   ██",
+    "██   ██",
+  ],
+  G: [
+    " █████",
+    "██████",
+    "██    ",
+    "██    ",
+    "██ ███",
+    "██  ██",
+    "██  ██",
+    "██████",
+    " █████",
+  ],
+  S: [
+    " █████",
+    "██████",
+    "██    ",
+    "█████ ",
+    " █████",
+    "    ██",
+    "    ██",
+    "██████",
+    "█████ ",
+  ],
+  F: [
+    "██████",
+    "██████",
+    "██    ",
+    "██    ",
+    "█████ ",
+    "█████ ",
+    "██    ",
+    "██    ",
+    "██    ",
+  ],
+  E: [
+    "██████",
+    "██████",
+    "██    ",
+    "██    ",
+    "█████ ",
+    "█████ ",
+    "██    ",
+    "██████",
+    "██████",
+  ],
+  A: [
+    "  ███  ",
+    " █████ ",
+    "██   ██",
+    "██   ██",
+    "███████",
+    "███████",
+    "██   ██",
+    "██   ██",
+    "██   ██",
+  ],
+  D: [
+    "█████ ",
+    "██████",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██████",
+    "█████ ",
+  ],
+  R: [
+    "██████ ",
+    "██   ██",
+    "██   ██",
+    "██   ██",
+    "██████ ",
+    "█████  ",
+    "██  ██ ",
+    "██   ██",
+    "██   ██",
+  ],
+  e: [
+    "     ",
+    "     ",
+    "     ",
+    " ███ ",
+    "█   █",
+    "█████",
+    "█    ",
+    " ████",
+    "     ",
+  ],
+  m: [
+    "         ",
+    "         ",
+    "         ",
+    "█   █   █",
+    "████ ████",
+    "█ █   █ █",
+    "█ █   █ █",
+    "█ █   █ █",
+    "         ",
+  ],
+  a: [
+    "     ",
+    "     ",
+    "     ",
+    " ███ ",
+    "    █",
+    " ████",
+    "█   █",
+    " ████",
+    "     ",
+  ],
+  n: [
+    "      ",
+    "      ",
+    "      ",
+    "█ ███ ",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    "      ",
+  ],
+  d: [
+    "    ██",
+    "    ██",
+    "    ██",
+    " █████",
+    "██  ██",
+    "██  ██",
+    "██  ██",
+    " █████",
+    "      ",
+  ],
+  r: [
+    "     ",
+    "     ",
+    "     ",
+    "██ ██",
+    "███  ",
+    "██   ",
+    "██   ",
+    "██   ",
+    "     ",
+  ],
+  f: [
+    "  ██ ",
+    "  ██ ",
+    " ████",
+    "  ██ ",
+    "  ██ ",
+    "  ██ ",
+    "  ██ ",
+    "  ██ ",
+    "     ",
+  ],
+  ":": [
+    "   ",
+    "   ",
+    " █ ",
+    " █ ",
+    "   ",
+    "   ",
+    " █ ",
+    " █ ",
+    "   ",
+  ],
+  " ": ["   ", "   ", "   ", "   ", "   ", "   ", "   ", "   ", "   "],
+};
+
 const TEXT_1975 = ["1", "9", "7", "5"];
 
 const RGB_PALETTE = [
@@ -80,14 +296,28 @@ type Pixel = {
   rgbColor: string;
 };
 
+type TextArt = {
+  pixels: Pixel[];
+  size: number;
+};
+
+function glyphOf(ch: string): { rows: string[]; h: number } {
+  if (GLYPHS_1975[ch]) return { rows: GLYPHS_1975[ch], h: 11 };
+  return { rows: GLYPHS_9[ch] ?? GLYPHS_9[" "], h: 9 };
+}
+
 export default function PixelIntro({
   onDone,
   loop = false,
+  texts = [TEXT_1975],
 }: {
   onDone: () => void;
   loop?: boolean;
+  texts?: string[][];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textsRef = useRef(texts);
+  textsRef.current = texts;
 
   useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -95,57 +325,73 @@ export default function PixelIntro({
     const canvas: HTMLCanvasElement = canvasEl;
     const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 
-    let unifiedPixelSize = 8;
-    let pixels1975: Pixel[] = [];
+    const lines = textsRef.current;
+    let arts: TextArt[] = [];
 
-    // Timeline
+    // Timeline per teks
     const T_INITIAL_DELAY = 700;
     const T_APPEAR = 1700;
-    const T_HOLD = 1600;
+    const T_HOLD = 2400;
     const T_VANISH = 1500;
+    const T_GAP = 800;
 
-    const TIME_START = T_INITIAL_DELAY;
-    const TIME_HOLD = TIME_START + T_APPEAR;
-    const TIME_VANISH = TIME_HOLD + T_HOLD;
-    const TIME_END = TIME_VANISH + T_VANISH;
-    const TOTAL = TIME_END;
+    type Seg = {
+      art: number;
+      start: number;
+      appearEnd: number;
+      holdEnd: number;
+      vanishEnd: number;
+      end: number;
+    };
+    let segs: Seg[] = [];
+    let TOTAL = T_INITIAL_DELAY;
+    lines.forEach((_, i) => {
+      const start = TOTAL;
+      const appearEnd = start + T_APPEAR;
+      const holdEnd = appearEnd + T_HOLD;
+      const vanishEnd = holdEnd + T_VANISH;
+      const end = vanishEnd + T_GAP;
+      segs.push({ art: i, start, appearEnd, holdEnd, vanishEnd, end });
+      TOTAL = end;
+    });
 
     let startTime: number | null = null;
     let rafId = 0;
     let finished = false;
 
-    function getTotalCols() {
+    function buildText(text: string[]): TextArt {
+      const g0 = glyphOf(text[0]);
+      const rows = g0.h;
+      const spacing = rows === 11 ? 2 : 1;
       let cols = 0;
-      for (let i = 0; i < TEXT_1975.length; i++) {
-        cols += GLYPHS_1975[TEXT_1975[i]][0].length;
-        if (i < TEXT_1975.length - 1) cols += 2;
-      }
-      return cols;
-    }
-
-    function build() {
-      const totalCols = getTotalCols();
-      const baseSize = Math.min(
-        (canvas.width * 0.8) / totalCols,
-        (canvas.height * 0.42) / 11
+      text.forEach((ch, i) => {
+        cols += glyphOf(ch).rows[0].length;
+        if (i < text.length - 1) cols += spacing;
+      });
+      // Besar di semua resolusi (jangan perkecil): sebesar muat layar.
+      const size = Math.max(
+        5,
+        Math.floor(
+          Math.min(
+            (canvas.width * 0.94) / cols,
+            (canvas.height * 0.6) / rows
+          )
+        )
       );
-      unifiedPixelSize = Math.max(4, Math.floor(baseSize));
-
-      const totalWidth = totalCols * unifiedPixelSize;
-      const startX = Math.floor((canvas.width - totalWidth) / 2);
-      const startY = Math.floor((canvas.height - 11 * unifiedPixelSize) / 2);
-
-      pixels1975 = [];
+      const totalW = cols * size;
+      const startX = Math.floor((canvas.width - totalW) / 2);
+      const startY = Math.floor((canvas.height - rows * size) / 2);
+      const pixels: Pixel[] = [];
       let curX = startX;
-      TEXT_1975.forEach((char) => {
-        const matrix = GLYPHS_1975[char];
+      text.forEach((ch) => {
+        const { rows: matrix } = glyphOf(ch);
         const charW = matrix[0].length;
-        for (let r = 0; r < 11; r++) {
+        for (let r = 0; r < rows; r++) {
           for (let c = 0; c < charW; c++) {
             if (matrix[r][c] === "█") {
-              pixels1975.push({
-                baseX: curX + c * unifiedPixelSize,
-                baseY: startY + r * unifiedPixelSize,
+              pixels.push({
+                baseX: curX + c * size,
+                baseY: startY + r * size,
                 appearTime: Math.random() * 0.76,
                 disappearTime: Math.random() * 0.76,
                 rgbColor:
@@ -154,12 +400,25 @@ export default function PixelIntro({
             }
           }
         }
-        curX += (charW + 2) * unifiedPixelSize;
+        curX += (charW + spacing) * size;
       });
+      return { pixels, size };
+    }
+
+    function build() {
+      arts = lines.map((t) => buildText(t));
+      // waktu acak baru tiap build (untuk loop)
+      arts.forEach((a) =>
+        a.pixels.forEach((p) => {
+          p.appearTime = Math.random() * 0.76;
+          p.disappearTime = Math.random() * 0.76;
+          p.rgbColor =
+            RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)];
+        })
+      );
     }
 
     function resize() {
-      // Pakai ukuran elemen (frame), bukan window, supaya angka center di frame.
       const w = canvas.clientWidth || window.innerWidth;
       const h = canvas.clientHeight || window.innerHeight;
       canvas.width = w;
@@ -205,55 +464,55 @@ export default function PixelIntro({
 
     function render(timestamp: number) {
       if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
+      let elapsed = timestamp - startTime;
+      if (loop && TOTAL > 0) elapsed = elapsed % TOTAL;
 
-      // Latar transparan: biarkan frame rounded + warna luar tembus.
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (elapsed >= TIME_START && elapsed < TIME_HOLD) {
-        const progress = (elapsed - TIME_START) / T_APPEAR;
-        pixels1975.forEach((p) => {
-          if (progress < p.appearTime) return;
-          const since = progress - p.appearTime;
-          if (since < 0.24) {
-            if (Math.random() < 0.52) {
-              const dyn =
-                Math.random() < 0.35
-                  ? RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)]
-                  : p.rgbColor;
-              drawRgb(p.baseX, p.baseY, unifiedPixelSize, dyn);
+      const seg = segs.find((g) => elapsed >= g.start && elapsed < g.end);
+      if (seg) {
+        const art = arts[seg.art];
+        if (elapsed < seg.appearEnd) {
+          const progress = (elapsed - seg.start) / T_APPEAR;
+          art.pixels.forEach((p) => {
+            if (progress < p.appearTime) return;
+            const since = progress - p.appearTime;
+            if (since < 0.24) {
+              if (Math.random() < 0.52) {
+                const dyn =
+                  Math.random() < 0.35
+                    ? RGB_PALETTE[
+                        Math.floor(Math.random() * RGB_PALETTE.length)
+                      ]
+                    : p.rgbColor;
+                drawRgb(p.baseX, p.baseY, art.size, dyn);
+              }
+            } else {
+              drawWhite(p.baseX, p.baseY, art.size);
             }
-          } else {
-            drawWhite(p.baseX, p.baseY, unifiedPixelSize);
-          }
-        });
-      } else if (elapsed >= TIME_HOLD && elapsed < TIME_VANISH) {
-        pixels1975.forEach((p) => drawWhite(p.baseX, p.baseY, unifiedPixelSize));
-      } else if (elapsed >= TIME_VANISH && elapsed < TIME_END) {
-        const progress = (elapsed - TIME_VANISH) / T_VANISH;
-        pixels1975.forEach((p) => {
-          if (progress > p.disappearTime + 0.24) return;
-          if (progress > p.disappearTime) {
-            if (Math.random() < 0.52)
-              drawRed(p.baseX, p.baseY, unifiedPixelSize);
-          } else {
-            drawWhite(p.baseX, p.baseY, unifiedPixelSize);
-          }
-        });
+          });
+        } else if (elapsed < seg.holdEnd) {
+          art.pixels.forEach((p) => drawWhite(p.baseX, p.baseY, art.size));
+        } else if (elapsed < seg.vanishEnd) {
+          const progress = (elapsed - seg.holdEnd) / T_VANISH;
+          art.pixels.forEach((p) => {
+            if (progress > p.disappearTime + 0.24) return;
+            if (progress > p.disappearTime) {
+              if (Math.random() < 0.52)
+                drawRed(p.baseX, p.baseY, art.size);
+            } else {
+              drawWhite(p.baseX, p.baseY, art.size);
+            }
+          });
+        }
       }
 
-      if (elapsed >= TIME_END) {
-        if (loop) {
-          // mode loop (hero): ulangi dari awal dengan timing acak baru
-          startTime = timestamp;
-          build();
-        } else {
-          if (!finished) {
-            finished = true;
-            onDone();
-          }
-          return;
+      if (!loop && elapsed >= TOTAL) {
+        if (!finished) {
+          finished = true;
+          onDone();
         }
+        return;
       }
       rafId = requestAnimationFrame(render);
     }
@@ -271,7 +530,7 @@ export default function PixelIntro({
       style={{
         position: "absolute",
         inset: 0,
-        zIndex: 3, // sementara di atas ripple untuk verifikasi
+        zIndex: 3,
         width: "100%",
         height: "100%",
         borderRadius: "inherit",

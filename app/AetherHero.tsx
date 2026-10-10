@@ -58,7 +58,10 @@ vec3 scene(vec2 uv) {
 void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
-  float s=12., e=9e-4;
+  // sel grid PAS mengikuti sisi panjang container (selalu simetris tengah,
+  // garis jatuh tepat di tepi kiri-kanan, tidak kepotong asal)
+  float s = 8.0 * 3.14159265 / (max(R.x, R.y) / MN);
+  float e=9e-4;
   // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
   vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun

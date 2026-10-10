@@ -75,6 +75,11 @@ export interface PrismCometPreloaderProps {
   onComplete?: () => void
   /** Extra root class names. */
   className?: string
+  /**
+   * Skip the whole load animation: show the finished portal star in the centre
+   * immediately, and never zoom/lift through it. Useful as a static backdrop.
+   */
+  instant?: boolean
 }
 
 const DEFAULT_PALETTE: PrismCometPalette = {
@@ -776,9 +781,10 @@ export default function PrismCometPreloader({
   height = "100svh",
   onComplete,
   className = "",
+  instant = false,
 }: PrismCometPreloaderProps) {
-  const [phase, setPhase] = React.useState<Phase>("load")
-  const [pct, setPct] = React.useState(0)
+  const [phase, setPhase] = React.useState<Phase>(instant ? "reveal" : "load")
+  const [pct, setPct] = React.useState(instant ? 100 : 0)
   const [pass, setPass] = React.useState(0)
   const [cycle, setCycle] = React.useState(0)
   const [failed, setFailed] = React.useState(false)
@@ -965,10 +971,15 @@ export default function PrismCometPreloader({
       // where in the stack we are: progress while loading, the end of it after
       const mTarget = phase === "load" ? pcpMorph(shownRef.current) : 4
       mShown += (mTarget - mShown) * k(phase === "load" && mTarget < mShown ? 30 : 6)
-      if (phase === "load") igShown = 0
+      if (instant) {
+        // no opening: jump straight to the finished portal star in the centre
+        mShown = 4
+        igShown = 1
+      } else if (phase === "load") igShown = 0
       else if (phase === "ignite") igShown = Math.max(igShown, clamp01(since / igniteMs))
       else igShown += (1 - igShown) * k(5)
-      const lift = phase === "lift" ? clamp01(since / liftMs) : 0
+      // no camera push-through when instant (stays put)
+      const lift = !instant && phase === "lift" ? clamp01(since / liftMs) : 0
       const rig = pcpRig(mShown, aspect)
       const ig = pcpIgnite(igShown, aspect)
       const loading = phase === "load"
@@ -1072,6 +1083,7 @@ export default function PrismCometPreloader({
 
   // ---- holds between phases ---------------------------------------------------------
   React.useEffect(() => {
+    if (instant) return // no opening: stay on the finished portal star forever
     if (phase === "ignite") {
       const t = setTimeout(() => setPhase("reveal"), igniteMs)
       return () => clearTimeout(t)
@@ -1093,9 +1105,10 @@ export default function PrismCometPreloader({
       }, liftMs)
       return () => clearTimeout(t)
     }
-  }, [phase, loop, igniteMs, liftMs])
+  }, [phase, loop, igniteMs, liftMs, instant])
 
   const onActivate = () => {
+    if (instant) return
     if (phase === "load") rushRef.current = true
     else if (phase === "ignite") setPhase("reveal")
     else if (phase === "reveal") setPhase("lift")

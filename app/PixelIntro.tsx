@@ -80,7 +80,13 @@ type Pixel = {
   rgbColor: string;
 };
 
-export default function PixelIntro({ onDone }: { onDone: () => void }) {
+export default function PixelIntro({
+  onDone,
+  loop = false,
+}: {
+  onDone: () => void;
+  loop?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -237,11 +243,17 @@ export default function PixelIntro({ onDone }: { onDone: () => void }) {
       }
 
       if (elapsed >= TIME_END) {
-        if (!finished) {
-          finished = true;
-          onDone();
+        if (loop) {
+          // mode loop (hero): ulangi dari awal dengan timing acak baru
+          startTime = timestamp;
+          build();
+        } else {
+          if (!finished) {
+            finished = true;
+            onDone();
+          }
+          return;
         }
-        return;
       }
       rafId = requestAnimationFrame(render);
     }
@@ -251,7 +263,7 @@ export default function PixelIntro({ onDone }: { onDone: () => void }) {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
     };
-  }, [onDone]);
+  }, [onDone, loop]);
 
   return (
     <canvas

@@ -68,10 +68,13 @@ void main() {
   // grid di dalam bingkai saja
   float grid = e/(sin(uv.x*s)*cos(uv.y*s));
   col += grid * mask;
-  // gradient glow putih dari bawah ke atas + shimmer halus
-  float gg = pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 2.0);
+  // gradient glow putih dari bawah sampai atas + shimmer halus
+  float gg = 0.3 + 0.7 * pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 1.5);
   gg *= 0.85 + 0.15 * sin(T * 0.7 + nrm.y * 3.0);
   col += vec3(1.0) * gg * 0.22 * mask;
+  // noise yang jelas kelihatan
+  float nz = fract(sin(dot(FC + fract(T * 3.0) * 311.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+  col += vec3(nz * 0.14);
   uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
   // scene() (busur pelangi) dimatikan — hanya grid gelap yang tampil
   O=vec4(col,1.);

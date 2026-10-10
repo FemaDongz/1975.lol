@@ -4,7 +4,7 @@ import AetherHero from "../AetherHero";
 import PixelIntro, { type TextEntry } from "../PixelIntro";
 import GridVideos from "../GridVideos";
 import useGridCols from "../useGridCols";
-import PlayButton from "../PlayButton";
+import MusicControl from "../MusicControl";
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
@@ -99,8 +99,18 @@ export default function Test2Page() {
         <PixelIntro loop onDone={() => {}} texts={SEQ} cols={cols} />
       </div>
 
-      {/* Tombol musik PLAY/STOP, pojok kanan bawah */}
-      <PlayButton />
+      {/* Tombol musik PLAY/STOP (liquid metal), pojok kanan bawah */}
+      <div
+        style={{
+          position: "fixed",
+          right: "calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-right, 0px))",
+          bottom:
+            "max(calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-bottom, 0px)), 30px)",
+          zIndex: 60,
+        }}
+      >
+        <MusicControl />
+      </div>
     </main>
   );
 }

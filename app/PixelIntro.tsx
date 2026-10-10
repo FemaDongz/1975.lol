@@ -406,35 +406,45 @@ export default function PixelIntro({
       return cols;
     }
 
-    // Ukuran pixel teks proporsional grid background (7 sel selebar canvas):
-    // ambil pembagi bulat dari sel background supaya selaras.
-    function snappedSize(cols: number, rows: number, wMul = 0.94, hMul = 0.6) {
+    // Ukuran pixel teks proporsional grid background (7 sel selebar canvas).
+    // sizeF = pecahan pas sel background; drawS = bulat untuk gambar tajam.
+    // Posisi X diakumulasi dari sizeF lalu di-round per pixel supaya tidak
+    // melenceng (lebar selalu pas); Y tetap langkah bulat.
+    function snappedSize(
+      cols: number,
+      rows: number,
+      wMul = 0.94,
+      hMul = 0.6
+    ): { sizeF: number; drawS: number } {
       const bgCell = canvas.width / 7;
-      if (!(bgCell > 0)) return 5;
+      if (!(bgCell > 0)) return { sizeF: 5, drawS: 5 };
       const fit =
         Math.min((canvas.width * wMul) / cols, (canvas.height * hMul) / rows) ||
         5;
       let k = Math.max(1, Math.round(bgCell / Math.max(1, fit)));
-      let size = Math.max(5, Math.floor(bgCell / k));
       let guard = 0;
-      while (
-        (cols * size > canvas.width * wMul ||
-          rows * size > canvas.height * hMul) &&
-        size > 5 &&
-        guard < 64
-      ) {
+      for (;;) {
+        const sizeF = bgCell / k;
+        const drawS = Math.max(5, Math.round(sizeF));
+        if (
+          cols * sizeF <= canvas.width * wMul &&
+          rows * drawS <= canvas.height * hMul
+        ) {
+          return { sizeF, drawS };
+        }
         k++;
-        size = Math.max(5, Math.floor(bgCell / k));
         guard++;
+        if (guard > 64) return { sizeF, drawS };
       }
-      return size;
     }
 
     function layoutLines(
       linesArr: string[][],
-      size: number,
+      sizeF: number,
+      drawS: number,
       gapRows: number
     ): TextArt {
+      const bgCell = canvas.width / 7;
       const infos = linesArr.map((line) => {
         const rows = glyphOf(line[0]).h;
         const spacing = rows === 11 ? 2 : 1;
@@ -442,12 +452,15 @@ export default function PixelIntro({
       });
       const totalRows =
         infos.reduce((a, b) => a + b.rows, 0) + gapRows * (infos.length - 1);
-      const blockH = totalRows * size;
+      const blockH = totalRows * drawS;
       let y = Math.floor((canvas.height - blockH) / 2);
       const pixels: Pixel[] = [];
       infos.forEach((info) => {
-        const totalW = info.cols * size;
-        let curX = Math.floor((canvas.width - totalW) / 2);
+        const totalW = info.cols * sizeF;
+        // startX ditempel ke grid background supaya blok sejajar sel
+        let startX = Math.round((canvas.width - totalW) / 2 / bgCell) * bgCell;
+        startX = Math.max(0, Math.min(startX, canvas.width - totalW));
+        let cur = 0;
         info.line.forEach((ch) => {
           const { rows: matrix } = glyphOf(ch);
           const charW = matrix[0].length;
@@ -455,8 +468,8 @@ export default function PixelIntro({
             for (let c = 0; c < charW; c++) {
               if (matrix[r][c] === "█") {
                 pixels.push({
-                  baseX: curX + c * size,
-                  baseY: y + r * size,
+                  baseX: Math.round(startX + (cur + c) * sizeF),
+                  baseY: y + r * drawS,
                   appearTime: Math.random() * 0.76,
                   disappearTime: Math.random() * 0.76,
                   rgbColor:
@@ -465,19 +478,19 @@ export default function PixelIntro({
               }
             }
           }
-          curX += (charW + info.spacing) * size;
+          cur += charW + info.spacing;
         });
-        y += (info.rows + gapRows) * size;
+        y += (info.rows + gapRows) * drawS;
       });
-      return { pixels, size };
+      return { pixels, size: drawS };
     }
 
     function buildEntry(entry: TextEntry): TextArt {
       const sRows = glyphOf(entry.single[0]).h;
       const sSp = sRows === 11 ? 2 : 1;
-      const sSize = snappedSize(colsOf(entry.single, sSp), sRows);
+      const snap = snappedSize(colsOf(entry.single, sSp), sRows);
       // Layar kecil & ada varian susun: tampil dua baris supaya tetap besar.
-      if (entry.stacked && sSize < 11) {
+      if (entry.stacked && snap.drawS < 11) {
         const infos = entry.stacked.map((line) => {
           const rows = glyphOf(line[0]).h;
           return { cols: colsOf(line, 1), rows };
@@ -485,12 +498,21 @@ export default function PixelIntro({
         const gapRows = 2;
         const totalRows =
           infos.reduce((a, b) => a + b.rows, 0) + gapRows * (infos.length - 1);
-        const size = Math.min(
-          ...infos.map((b) => snappedSize(b.cols, totalRows, 0.9, 0.66))
+        const snaps = infos.map((b) =>
+          snappedSize(b.cols, totalRows, 0.9, 0.66)
         );
-        return layoutLines(entry.stacked, size, gapRows);
+        let bi = 0;
+        snaps.forEach((s, i) => {
+          if (s.sizeF < snaps[bi].sizeF) bi = i;
+        });
+        return layoutLines(
+          entry.stacked,
+          snaps[bi].sizeF,
+          snaps[bi].drawS,
+          gapRows
+        );
       }
-      return layoutLines([entry.single], sSize, 0);
+      return layoutLines([entry.single], snap.sizeF, snap.drawS, 0);
     }
 
     function build() {

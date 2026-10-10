@@ -217,36 +217,34 @@ export const AntiMetalButton = React.forwardRef<
           zIndex: 10,
           display: "flex",
           alignItems: "center",
-          // kecil: 1 dot di tengah ; penuh: dot memanjang ke kanan
-          justifyContent: isExpanded ? "flex-start" : "center",
+          justifyContent: "flex-start",
           width: isExpanded ? "calc(100% - 8px)" : 36,
           overflow: "hidden",
           borderRadius: 8,
-          paddingLeft: isExpanded ? 11 : 0,
-          paddingRight: isExpanded ? 10 : 0,
+          // kecil: dot pertama agak ke kanan & hanya itu yang terlihat
+          paddingLeft: isExpanded ? 11 : 10,
+          paddingRight: 10,
+          gap: 8,
           background: `linear-gradient(180deg, ${theme.slabFrom} 0%, ${theme.slabTo} 100%)`,
           boxShadow: theme.slabGlow,
           transition:
-            "width 0.26s cubic-bezier(0.65, 0, 0.35, 1), padding 0.26s cubic-bezier(0.65, 0, 0.35, 1), background 0.2s ease, box-shadow 0.2s ease",
+            "width 0.26s cubic-bezier(0.65, 0, 0.35, 1), padding 0.26s cubic-bezier(0.65, 0, 0.35, 1), gap 0.26s ease, background 0.2s ease, box-shadow 0.2s ease",
         }}
       >
-        <DotGroup index={0} dotColor={theme.dotColor} />
-        {isExpanded && (
-          <>
-            <span style={{ display: "inline-flex", marginLeft: 8 }}>
-              <DotGroup index={1} dotColor={theme.dotColor} />
-            </span>
-            <span style={{ display: "inline-flex", marginLeft: 8 }}>
-              <DotGroup index={2} dotColor={theme.dotColor} />
-            </span>
-            <span style={{ display: "inline-flex", marginLeft: 8 }}>
-              <DotGroup index={3} dotColor={theme.dotColor} />
-            </span>
-            <span style={{ display: "inline-flex", marginLeft: 8 }}>
-              <DotGroup index={4} dotColor={theme.dotColor} />
-            </span>
-          </>
-        )}
+        {/* 5 pack dot konsisten; saat kecil hanya yang pertama terlihat */}
+        {[0, 1, 2, 3, 4].map((k) => (
+          <span
+            key={k}
+            style={{
+              display: "inline-flex",
+              flexShrink: 0,
+              opacity: isExpanded || k === 0 ? 1 : 0,
+              transition: "opacity 0.2s ease",
+            }}
+          >
+            <DotGroup index={k} dotColor={theme.dotColor} />
+          </span>
+        ))}
       </span>
     </button>
   );

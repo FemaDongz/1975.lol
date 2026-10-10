@@ -273,6 +273,28 @@ const GLYPHS_9: Record<string, string[]> = {
     " █ ",
     "   ",
   ],
+  "[": [
+    "████",
+    "██  ",
+    "██  ",
+    "██  ",
+    "██  ",
+    "██  ",
+    "██  ",
+    "██  ",
+    "████",
+  ],
+  "]": [
+    "████",
+    "  ██",
+    "  ██",
+    "  ██",
+    "  ██",
+    "  ██",
+    "  ██",
+    "  ██",
+    "████",
+  ],
   " ": ["   ", "   ", "   ", "   ", "   ", "   ", "   ", "   ", "   "],
 };
 
@@ -306,14 +328,19 @@ function glyphOf(ch: string): { rows: string[]; h: number } {
   return { rows: GLYPHS_9[ch] ?? GLYPHS_9[" "], h: 9 };
 }
 
+export type TextEntry = {
+  single: string[];
+  stacked?: string[][];
+};
+
 export default function PixelIntro({
   onDone,
   loop = false,
-  texts = [TEXT_1975],
+  texts = [{ single: TEXT_1975 }],
 }: {
   onDone: () => void;
   loop?: boolean;
-  texts?: string[][];
+  texts?: TextEntry[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textsRef = useRef(texts);
@@ -325,7 +352,7 @@ export default function PixelIntro({
     const canvas: HTMLCanvasElement = canvasEl;
     const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
 
-    const lines = textsRef.current;
+    const entries = textsRef.current;
     let arts: TextArt[] = [];
 
     // Timeline per teks
@@ -345,7 +372,7 @@ export default function PixelIntro({
     };
     let segs: Seg[] = [];
     let TOTAL = T_INITIAL_DELAY;
-    lines.forEach((_, i) => {
+    entries.forEach((_, i) => {
       const start = TOTAL;
       const appearEnd = start + T_APPEAR;
       const holdEnd = appearEnd + T_HOLD;
@@ -359,54 +386,95 @@ export default function PixelIntro({
     let rafId = 0;
     let finished = false;
 
-    function buildText(text: string[]): TextArt {
-      const g0 = glyphOf(text[0]);
-      const rows = g0.h;
-      const spacing = rows === 11 ? 2 : 1;
+    function colsOf(line: string[], spacing: number): number {
       let cols = 0;
-      text.forEach((ch, i) => {
+      line.forEach((ch, i) => {
         cols += glyphOf(ch).rows[0].length;
-        if (i < text.length - 1) cols += spacing;
+        if (i < line.length - 1) cols += spacing;
       });
-      // Besar di semua resolusi (jangan perkecil): sebesar muat layar.
-      const size = Math.max(
+      return cols;
+    }
+
+    function sizeFor(cols: number, rows: number, wMul = 0.94, hMul = 0.6) {
+      return Math.max(
         5,
         Math.floor(
-          Math.min(
-            (canvas.width * 0.94) / cols,
-            (canvas.height * 0.6) / rows
-          )
+          Math.min((canvas.width * wMul) / cols, (canvas.height * hMul) / rows)
         )
       );
-      const totalW = cols * size;
-      const startX = Math.floor((canvas.width - totalW) / 2);
-      const startY = Math.floor((canvas.height - rows * size) / 2);
+    }
+
+    function layoutLines(
+      linesArr: string[][],
+      size: number,
+      gapRows: number
+    ): TextArt {
+      const infos = linesArr.map((line) => {
+        const rows = glyphOf(line[0]).h;
+        const spacing = rows === 11 ? 2 : 1;
+        return { line, rows, spacing, cols: colsOf(line, spacing) };
+      });
+      const totalRows =
+        infos.reduce((a, b) => a + b.rows, 0) + gapRows * (infos.length - 1);
+      const blockH = totalRows * size;
+      let y = Math.floor((canvas.height - blockH) / 2);
       const pixels: Pixel[] = [];
-      let curX = startX;
-      text.forEach((ch) => {
-        const { rows: matrix } = glyphOf(ch);
-        const charW = matrix[0].length;
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < charW; c++) {
-            if (matrix[r][c] === "█") {
-              pixels.push({
-                baseX: curX + c * size,
-                baseY: startY + r * size,
-                appearTime: Math.random() * 0.76,
-                disappearTime: Math.random() * 0.76,
-                rgbColor:
-                  RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)],
-              });
+      infos.forEach((info) => {
+        const totalW = info.cols * size;
+        let curX = Math.floor((canvas.width - totalW) / 2);
+        info.line.forEach((ch) => {
+          const { rows: matrix } = glyphOf(ch);
+          const charW = matrix[0].length;
+          for (let r = 0; r < info.rows; r++) {
+            for (let c = 0; c < charW; c++) {
+              if (matrix[r][c] === "█") {
+                pixels.push({
+                  baseX: curX + c * size,
+                  baseY: y + r * size,
+                  appearTime: Math.random() * 0.76,
+                  disappearTime: Math.random() * 0.76,
+                  rgbColor:
+                    RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)],
+                });
+              }
             }
           }
-        }
-        curX += (charW + spacing) * size;
+          curX += (charW + info.spacing) * size;
+        });
+        y += (info.rows + gapRows) * size;
       });
       return { pixels, size };
     }
 
+    function buildEntry(entry: TextEntry): TextArt {
+      const sRows = glyphOf(entry.single[0]).h;
+      const sSp = sRows === 11 ? 2 : 1;
+      const sSize = sizeFor(colsOf(entry.single, sSp), sRows);
+      // Layar kecil & ada varian susun: tampil dua baris supaya tetap besar.
+      if (entry.stacked && sSize < 11) {
+        const infos = entry.stacked.map((line) => {
+          const rows = glyphOf(line[0]).h;
+          return { cols: colsOf(line, 1), rows };
+        });
+        const gapRows = 2;
+        const totalRows =
+          infos.reduce((a, b) => a + b.rows, 0) + gapRows * (infos.length - 1);
+        const size = Math.max(
+          5,
+          Math.floor(
+            Math.min(
+              ...infos.map((b) => (canvas.width * 0.9) / b.cols),
+              (canvas.height * 0.66) / totalRows
+            )
+          )
+        );
+        return layoutLines(entry.stacked, size, gapRows);
+      }
+      return layoutLines([entry.single], sSize, 0);
+    }
+
     function build() {
-      arts = lines.map((t) => buildText(t));
+      arts = entries.map((t) => buildEntry(t));
       // waktu acak baru tiap build (untuk loop)
       arts.forEach((a) =>
         a.pixels.forEach((p) => {

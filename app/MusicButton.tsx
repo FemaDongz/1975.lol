@@ -3,9 +3,10 @@
 import * as React from "react";
 
 // Tombol musik bergaya AntiMetalButton.
-//   - teks di KANAN (tetap terlihat, tidak tertutup slab)
-//   - slab + 1 pack dot di KIRI; saat klik slab geser melebar lalu balik
-//   - PLAY = putih glow ; STOP (nyala) = merah glow + teks "Stop"
+//   - teks KAPITAL di kanan (PLAY/STOP), tetap di atas slab
+//   - slab di kiri: diam = rapat ke teks, isi 1 pack dot DI TENGAH slab
+//   - saat klik slab melebar, dot tambahan muncul bertahap (rapi)
+//   - PLAY = putih glow ; STOP (nyala) = merah glow
 //   - rounded + gap dari sisi kanan & bawah (relatif frame)
 
 const CDN_SRC =
@@ -14,8 +15,7 @@ const LOCAL_SRC = "/audio/about-you.mp3";
 
 const SLIDE_MS = 420;
 
-function DotGroup({ index, dotColor }: { index: number; dotColor: string }) {
-  const base = index * 0.12;
+function DotGroup({ dotColor }: { dotColor: string }) {
   const dots = [
     { cx: 2, cy: 2, d: 0 },
     { cx: 5, cy: 5, d: 0.05 },
@@ -44,7 +44,7 @@ function DotGroup({ index, dotColor }: { index: number; dotColor: string }) {
             cy={o.cy}
             r="1"
             className="mb-dot"
-            style={{ animationDelay: `${base + o.d}s` }}
+            style={{ animationDelay: `${o.d}s` }}
           />
         ))}
       </g>
@@ -90,14 +90,13 @@ export default function MusicButton() {
     timers.current.push(setTimeout(() => setSlideOpen(false), SLIDE_MS));
   };
 
-  // PLAY = putih glow ; STOP = merah glow
   const slab = playing
     ? "linear-gradient(180deg,#ff4d4d 0%,#e01b1b 100%)"
     : "linear-gradient(180deg,#ffffff 0%,#e2e2e2 100%)";
   const slabGlow = playing
     ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.75)"
     : "inset 0 1px 0 rgba(255,255,255,0.6), 0 0 12px rgba(255,255,255,0.6)";
-  const label = playing ? "Stop" : "Play";
+  const label = playing ? "STOP" : "PLAY";
 
   return (
     <>
@@ -114,6 +113,9 @@ export default function MusicButton() {
         .mb-slab {
           transition: width ${SLIDE_MS}ms cubic-bezier(0.65,0,0.35,1), background 0.35s ease, box-shadow 0.35s ease;
         }
+        .mb-extra {
+          transition: opacity 0.3s ease, transform 0.3s ease;
+        }
         @media (prefers-reduced-motion: reduce) {
           .mb-dot { animation: none; opacity: 1; }
           .mb-slab { transition: background 0.3s ease; }
@@ -126,7 +128,6 @@ export default function MusicButton() {
         aria-label={playing ? "Stop music" : "Play music"}
         style={{
           position: "fixed",
-          // gap dari sisi frame: 6px HP / 10px desktop + margin 12px + safe-area
           right:
             "calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-right, 0px))",
           bottom:
@@ -134,10 +135,11 @@ export default function MusicButton() {
           zIndex: 60,
           display: "inline-flex",
           alignItems: "center",
+          gap: 10, // jarak slab ke teks (rapat proporsional)
           height: 44,
           width: "auto",
           minWidth: 112,
-          padding: "0 18px 0 52px", // ruang kiri buat slab dot
+          padding: "4px",
           overflow: "hidden",
           borderRadius: "clamp(16px, 16px, 22px)",
           border: "none",
@@ -149,20 +151,20 @@ export default function MusicButton() {
           transition: "box-shadow 0.35s ease",
         }}
       >
-        {/* slab + 1 pack dot di kiri; melebar saat klik lalu balik */}
+        {/* slab: diam 36px (1 pack dot di tengah), melebar saat klik */}
         <span
           aria-hidden="true"
           className="mb-slab"
           style={{
-            position: "absolute",
-            top: 4,
-            bottom: 4,
-            left: 4,
+            position: "relative",
             zIndex: 10,
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-start",
+            justifyContent: slideOpen ? "flex-start" : "center",
+            gap: 6,
             width: slideOpen ? "calc(100% - 8px)" : 36,
+            height: 36,
+            flexShrink: 0,
             overflow: "hidden",
             borderRadius: "clamp(11px, 11px, 18px)",
             paddingLeft: 8,
@@ -171,19 +173,36 @@ export default function MusicButton() {
             boxShadow: slabGlow,
           }}
         >
-          <DotGroup index={0} dotColor="#0f0f0f" />
+          {/* pack utama: selalu tampil */}
+          <DotGroup dotColor="#0f0f0f" />
+          {/* pack tambahan: muncul saat melebar */}
+          {[1, 2, 3].map((k) => (
+            <span
+              key={k}
+              className="mb-extra"
+              style={{
+                opacity: slideOpen ? 1 : 0,
+                transform: slideOpen ? "scale(1)" : "scale(0.6)",
+                transitionDelay: slideOpen ? `${k * 60}ms` : "0ms",
+                display: "inline-flex",
+              }}
+            >
+              <DotGroup dotColor="#0f0f0f" />
+            </span>
+          ))}
         </span>
 
-        {/* teks di kanan, z di atas slab supaya tidak tertutup */}
+        {/* teks KAPITAL di kanan, di atas slab */}
         <span
           style={{
             position: "relative",
             zIndex: 30,
-            marginLeft: "auto",
+            paddingRight: 14,
             fontSize: 14,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
+            fontWeight: 700,
+            letterSpacing: "0.06em",
             color: "#ffffff",
+            textTransform: "uppercase",
             textShadow: "0 1px 2px rgba(0,0,0,.5)",
           }}
         >

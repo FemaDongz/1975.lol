@@ -223,7 +223,7 @@ export const AntiMetalButton = React.forwardRef<
           overflow: "hidden",
           borderRadius: 8,
           // kecil: dot pertama agak ke kanan (tengah slab kecil)
-          paddingLeft: isExpanded ? 11 : 14,
+          paddingLeft: isExpanded ? 11 : 12,
           paddingRight: 10,
           gap: 8,
           background: `linear-gradient(180deg, ${theme.slabFrom} 0%, ${theme.slabTo} 100%)`,

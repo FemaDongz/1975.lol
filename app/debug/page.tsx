@@ -4,7 +4,7 @@ import AetherHero from "../AetherHero";
 import PixelIntro, { type TextEntry } from "../PixelIntro";
 import GridVideos from "../GridVideos";
 import useGridCols from "../useGridCols";
-import AntiMetalButton from "../AntiMetalButton";
+import MusicButton from "../MusicButton";
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
@@ -99,7 +99,7 @@ export default function Test2Page() {
         <PixelIntro loop onDone={() => {}} texts={SEQ} cols={cols} />
       </div>
 
-      {/* Tombol Book a demo, pojok kanan bawah */}
+      {/* Tombol PLAY/STOP musik, pojok kanan bawah */}
       <div
         style={{
           position: "fixed",
@@ -109,7 +109,7 @@ export default function Test2Page() {
           zIndex: 60,
         }}
       >
-        <AntiMetalButton label="Book a demo" />
+        <MusicButton />
       </div>
     </main>
   );

@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// 5 slot video di sel grid shader (7 kolom — HARUS sama supaya pas).
-// Tiap slot BERJALAN SENDIRI (fase beda): fade-out → pindah sel + ganti file
-// (dari 10 video random) → fade-in, berulang. Jadi hampir selalu terlihat
-// 5 video sekaligus, tapi tidak muncul/hilang bersamaan. Saturasi 0 +
-// vignette per-sel, muted autoplay.
+// 5 slot video di sel grid shader (kolom = cols, samain shader).
+// CACHE PINTAR: tiap video dicek/di-preload dulu (fetch + decode singkat).
+// Slot baru ditampilkan setelah videonya siap (readyState >= 2), jadi tidak
+// ada "hitam"/putus. Hasil pengecekan dicache agar tidak diulang.
+// Tiap slot siklus sendiri (fase beda), fade-out → pindah sel + ganti file
+// → fade-in, berulang. Saturasi 0 + vignette per-sel, muted autoplay.
 
 const FILES = [
   "s1.mp4", "s2.mp4", "s3.mp4", "s4.mp4", "s5.mp4",
@@ -21,6 +22,44 @@ const rand = (n: number) => Math.floor(Math.random() * n);
 type Cell = { c: number; r: number };
 type Slot = { pos: Cell; file: string; vis: number; born: number };
 
+// ---- cache pintar: status siap tiap file ----
+const readyCache = new Map<string, boolean>();
+const preloadPromise = new Map<string, Promise<boolean>>();
+
+function preloadVideo(file: string): Promise<boolean> {
+  if (readyCache.has(file)) return Promise.resolve(readyCache.get(file)!);
+  const exist = preloadPromise.get(file);
+  if (exist) return exist;
+  const p = new Promise<boolean>((resolve) => {
+    const v = document.createElement("video");
+    v.muted = true;
+    v.preload = "auto";
+    v.src = `/videos/${file}`;
+    const ok = () => {
+      readyCache.set(file, true);
+      resolve(true);
+      v.removeAttribute("src");
+    };
+    const bad = () => {
+      readyCache.set(file, false);
+      resolve(false);
+    };
+    v.addEventListener("canplaythrough", ok, { once: true });
+    v.addEventListener("loadeddata", ok, { once: true });
+    v.addEventListener("error", bad, { once: true });
+    // fallback timeout biar tidak menggantung
+    setTimeout(() => {
+      if (!readyCache.has(file)) {
+        readyCache.set(file, true);
+        resolve(true);
+      }
+    }, 4000);
+    v.load();
+  });
+  preloadPromise.set(file, p);
+  return p;
+}
+
 export default function GridVideos({ cols = 7 }: { cols?: number }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0 });
@@ -28,7 +67,11 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
   geoRef.current = geo;
   const [slots, setSlots] = useState<Slot[]>([]);
 
-  // ukur grid (kolom = cols, samain shader)
+  // warm-up cache semua video di awal
+  useEffect(() => {
+    FILES.forEach((f) => preloadVideo(f));
+  }, []);
+
   useEffect(() => {
     const parent = rootRef.current?.parentElement;
     if (!parent) return;
@@ -59,37 +102,46 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
     return { c: rand(cols), r: rand(rows) };
   };
 
-  // file yang belum dipakai slot lain (selalu beda-beda antar slot)
   const pickFile = (used: string[]): string => {
+    // utamakan file yang sudah siap (dari cache)
     const free = FILES.filter((f) => !used.includes(f));
     const pool = free.length ? free : FILES;
-    return pool[rand(pool.length)];
+    const ready = pool.filter((f) => readyCache.get(f) === true);
+    const pick = ready.length ? ready : pool;
+    return pick[rand(pick.length)];
   };
 
-  // init 5 slot dengan fase tersebar (born berbeda jauh)
+  // init 5 slot setelah video siap (check dulu)
   useEffect(() => {
     if (!geo.rows || slots.length) return;
-    const used: Cell[] = [];
-    const usedFiles: string[] = [];
-    const now = performance.now();
-    const arr: Slot[] = [];
-    for (let i = 0; i < SLOTS; i++) {
-      const p = pickCell(used);
-      used.push(p);
-      const f = pickFile(usedFiles);
-      usedFiles.push(f);
-      arr.push({
-        pos: p,
-        file: f,
-        vis: 1,
-        born: now - Math.floor((SHOW_MS / SLOTS) * i),
-      });
-    }
-    setSlots(arr);
+    let alive = true;
+    Promise.all(FILES.map((f) => preloadVideo(f))).then(() => {
+      if (!alive || geoRef.current.rows === 0) return;
+      const used: Cell[] = [];
+      const usedFiles: string[] = [];
+      const now = performance.now();
+      const arr: Slot[] = [];
+      for (let i = 0; i < SLOTS; i++) {
+        const p = pickCell(used);
+        used.push(p);
+        const f = pickFile(usedFiles);
+        usedFiles.push(f);
+        arr.push({
+          pos: p,
+          file: f,
+          vis: 1,
+          born: now - Math.floor((SHOW_MS / SLOTS) * i),
+        });
+      }
+      setSlots(arr);
+    });
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.rows, slots.length]);
 
-  // tiap slot siklus sendiri (interval ringan)
+  // siklus tiap slot
   useEffect(() => {
     if (slots.length !== SLOTS) return;
     const id = setInterval(() => {
@@ -98,16 +150,19 @@ export default function GridVideos({ cols = 7 }: { cols?: number }) {
         let changed = false;
         const next = prev.map((s, i) => {
           const age = now - s.born;
-          const vis = age < SHOW_MS - FADE_MS ? 1 : age < SHOW_MS ? 0 : 0;
+          const vis = age < SHOW_MS - FADE_MS ? 1 : 0;
           if (age >= SHOW_MS) {
             const others = prev.filter((_, k) => k !== i).map((x) => x.pos);
             const othersFiles = prev
               .filter((_, k) => k !== i)
               .map((x) => x.file);
-            const np = pickCell(others);
-            const nf = pickFile(othersFiles);
             changed = true;
-            return { pos: np, file: nf, vis: 0, born: now };
+            return {
+              pos: pickCell(others),
+              file: pickFile(othersFiles),
+              vis: 0,
+              born: now,
+            };
           }
           if (s.vis !== vis) {
             changed = true;

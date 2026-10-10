@@ -65,8 +65,9 @@ void main() {
   col+=e/(sin(uv.x*s)*cos(uv.y*s));
   uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
   col+=scene(uv);
-  // monochrome: bungkus ke abu-abu, hilangkan pemisahan channel RGB
+  // monochrome murni: paksa semua jadi skala abu + lembutkan garis tajam
   float g = clamp(col, 0.0, 1.0);
+  g = smoothstep(0.0, 0.85, g);
   // film grain halus
   float n = hash(FC + fract(T * 3.0) * 311.0) - 0.5;
   g += n * 0.06;

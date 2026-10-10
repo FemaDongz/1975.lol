@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -66,7 +66,11 @@ function measureText(text: string): number {
 export default function PlayButton() {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = React.useState(false);
+  // mode warna: berubah SETELAH slab penuh (bukan saat animasi mulai)
+  const [mode, setMode] = React.useState<"play" | "stop">("play");
   const [slideOpen, setSlideOpen] = React.useState(false);
+  // dot ekstra tetap ada selama animasi menutup (tenggelam di tempat)
+  const [showExtra, setShowExtra] = React.useState(false);
   const [useLocal, setUseLocal] = React.useState(false);
   const timers = React.useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -98,17 +102,24 @@ export default function PlayButton() {
     const willPlay = a.paused;
     if (willPlay) a.play().catch(() => {});
     else a.pause();
-    // slab geser penuh -> balik otomatis -> warna berganti mengikuti audio
+    // geser slab penuh; warna baru berganti SETELAH slab penuh
+    setShowExtra(true);
     setSlideOpen(true);
-    timers.current.push(setTimeout(() => setSlideOpen(false), SLIDE_MS));
+    timers.current.push(
+      setTimeout(() => setMode(willPlay ? "stop" : "play"), SLIDE_MS)
+    );
+    // saat menutup, dot ekstra "tenggelam" di tempat (fade) lalu dibuang
+    timers.current.push(setTimeout(() => setSlideOpen(false), SLIDE_MS + 260));
+    timers.current.push(setTimeout(() => setShowExtra(false), SLIDE_MS + 620));
   };
 
-  const label = playing ? "STOP" : "PLAY";
-  const accentFrom = playing ? "#ff4d4d" : "#ffffff";
-  const accentTo = playing ? "#e01b1b" : "#e6e6e6";
-  // lebar button = teks terpanjang + ruang dot (34) + padding (rapat)
+  const isStop = mode === "stop";
+  const label = isStop ? "STOP" : "PLAY";
+  const accentFrom = isStop ? "#ff4d4d" : "#ffffff";
+  const accentTo = isStop ? "#e01b1b" : "#e6e6e6";
+  // lebar button = teks terpanjang + ruang dot (34) + padding (rapat, teks 2px dari sisi)
   const btnWidth =
-    Math.max(measureText("PLAY"), measureText("STOP")) + 34 + 10 + 4;
+    Math.max(measureText("PLAY"), measureText("STOP")) + 34 + 8;
 
   return (
     <>
@@ -138,7 +149,7 @@ export default function PlayButton() {
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? "Stop music" : "Play music"}
+        aria-label={isStop ? "Stop music" : "Play music"}
         style={{
           position: "fixed",
           right: "calc(clamp(6px,6px,10px) + 12px + env(safe-area-inset-right, 0px))",
@@ -154,7 +165,7 @@ export default function PlayButton() {
           border: "none",
           cursor: "pointer",
           background: "linear-gradient(180deg,#1a1a1a 0%,#0a0a0a 100%)",
-          boxShadow: playing
+          boxShadow: isStop
             ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px 2px rgba(255,60,60,0.55), 0 4px 12px rgba(0,0,0,0.3)"
             : "inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px 1px rgba(255,255,255,0.3), 0 4px 12px rgba(0,0,0,0.18)",
           transition: "box-shadow 0.35s ease",
@@ -180,15 +191,16 @@ export default function PlayButton() {
             paddingLeft: slideOpen ? 8 : 0,
             paddingRight: slideOpen ? 8 : 0,
             background: `linear-gradient(180deg, ${accentFrom} 0%, ${accentTo} 100%)`,
-            boxShadow: playing
+            boxShadow: isStop
               ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.7)"
               : "inset 0 1px 0 rgba(255,255,255,0.5), 0 0 12px rgba(255,255,255,0.6)",
           }}
         >
           {/* dot utama: selalu tampil, di tengah kotak saat diam */}
           <DotGroup dotColor="#0f0f0f" />
-          {/* dot tambahan: hanya saat slab penuh, memanjang ke kanan */}
-          {slideOpen &&
+          {/* dot tambahan: memanjang ke kanan saat slab penuh; saat menutup
+              tetap di posisi lalu tenggelam (fade) */}
+          {showExtra &&
             [1, 2, 3, 4].map((k) => (
               <span
                 key={k}
@@ -196,8 +208,10 @@ export default function PlayButton() {
                 style={{
                   display: "inline-flex",
                   marginLeft: 6,
-                  opacity: 1,
-                  animation: `mb-slide-in 0.3s ease ${k * 70}ms both`,
+                  opacity: slideOpen ? 1 : 0,
+                  transition: `opacity ${
+                    slideOpen ? 0.28 : 0.3
+                  }s ease ${slideOpen ? k * 70 : 0}ms`,
                 }}
               >
                 <DotGroup dotColor="#0f0f0f" />
@@ -211,12 +225,12 @@ export default function PlayButton() {
             position: "relative",
             zIndex: 5,
             marginLeft: "auto",
-            paddingRight: 10,
+            paddingRight: 2,
             fontSize: 14,
             fontWeight: 700,
             letterSpacing: "0.08em",
-            color: playing ? "#ff4d4d" : "#ffffff",
-            textShadow: playing
+            color: isStop ? "#ff4d4d" : "#ffffff",
+            textShadow: isStop
               ? "0 0 8px rgba(255,60,60,0.9), 0 0 3px rgba(255,60,60,0.7)"
               : "0 1px 2px rgba(0,0,0,.5)",
             transition: "color 0.35s ease, text-shadow 0.35s ease",

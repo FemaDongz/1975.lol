@@ -2,209 +2,236 @@
 
 import * as React from "react";
 
-// PlayStopButton — dari kode yang dikasih (styled-components) dikonversi ke
-// TSX mandiri (tanpa styled-components). Fungsional: PLAY/STOP audio.
-// - PLAY = putih, STOP = merah (glow + border + text ikut)
-// - klik: slab penuh otomatis lalu balik, warna berganti setelah retract
-// - noise overlay di tepi + background
-// - teks animasi letter-glow, ikon play/stop
-//
-// Prop opsional: src (audio), onToggle.
+type DotGroupProps = {
+  index: number;
+  dotColor: string;
+};
 
-const DEFAULT_SRC =
-  "https://cdn.jsdelivr.net/gh/FemaDongz/1975.lol@main/public/audio/about-you.mp3";
+function DotGroup({ index, dotColor }: DotGroupProps) {
+  const baseDelay = index * 0.12;
+  const dots = [
+    { cx: 2, cy: 2, d: 0 },
+    { cx: 5, cy: 5, d: 0.05 },
+    { cx: 8, cy: 8, d: 0.1 },
+    { cx: 5, cy: 11, d: 0.15 },
+    { cx: 2, cy: 14, d: 0.2 },
+    { cx: 6, cy: 2, d: 0.05 },
+    { cx: 9, cy: 5, d: 0.1 },
+    { cx: 12, cy: 8, d: 0.15 },
+    { cx: 9, cy: 11, d: 0.2 },
+    { cx: 6, cy: 14, d: 0.25 },
+  ];
+  return (
+    <svg
+      width="14"
+      height="16"
+      viewBox="0 0 14 16"
+      aria-hidden="true"
+      focusable="false"
+      style={{ flexShrink: 0, overflow: "visible" }}
+    >
+      <g fill={dotColor}>
+        {dots.map((o, i) => (
+          <circle
+            key={i}
+            cx={o.cx}
+            cy={o.cy}
+            r="1"
+            className="amb-dot"
+            style={{ animationDelay: `${baseDelay + o.d}s` }}
+          />
+        ))}
+      </g>
+    </svg>
+  );
+}
 
-export default function PlayStopButton({
-  src = DEFAULT_SRC,
-  onToggle,
-}: {
-  src?: string;
-  onToggle?: (playing: boolean) => void;
-}) {
-  const [isStop, setIsStop] = React.useState(false);
-  const [isAnimating, setIsAnimating] = React.useState(false);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  const [useLocal, setUseLocal] = React.useState(false);
+export type PlayStopButtonProps = {
+  className?: string;
+  initialMode?: "PLAY" | "STOP";
+  onModeChange?: (newMode: "PLAY" | "STOP") => void;
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick">;
 
-  React.useEffect(() => {
-    const audio = new Audio();
-    audio.loop = true;
-    audio.preload = "none";
-    audio.src = useLocal
-      ? "/audio/about-you.mp3"
-      : src;
-    audio.addEventListener("error", () => setUseLocal(true));
-    audioRef.current = audio;
-    return () => {
-      audio.pause();
-      audioRef.current = null;
-    };
-  }, [src, useLocal]);
+export const AntiMetalButton = React.forwardRef<
+  HTMLButtonElement,
+  PlayStopButtonProps
+>(function AntiMetalButton(
+  { className, initialMode = "PLAY", onModeChange, style, ...rest },
+  ref
+) {
+  const [mode, setMode] = React.useState<"PLAY" | "STOP">(initialMode);
+  const [hover, setHover] = React.useState(false);
+  const [animatingSlab, setAnimatingSlab] = React.useState(false);
+  const isBusyRef = React.useRef(false);
 
-  const handleClick = () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
+  const isPlay = mode === "PLAY";
 
-    // bunyikan/matikan lagu
-    const a = audioRef.current;
-    if (a) {
-      if (a.paused) a.play().catch(() => {});
-      else a.pause();
-    }
-    const next = !isStop;
-    onToggle?.(next ? false : true);
+  // Konfigurasi tema warna & glow
+  const theme = isPlay
+    ? {
+        text: "PLAY",
+        textColor: "#ffffff",
+        textGlow:
+          "0 0 8px rgba(255,255,255,0.8), 0 0 18px rgba(255,255,255,0.4)",
+        slabFrom: "#ffffff",
+        slabTo: "#e2e2e2",
+        slabGlow:
+          "0 0 14px rgba(255,255,255,0.6), inset 0 1px 0 #ffffff, inset 0 -2px 4px rgba(0,0,0,0.15)",
+        dotColor: "#0a0a0a",
+        btnBorder: "rgba(255, 255, 255, 0.22)",
+        btnGlow:
+          "0 0 20px rgba(255, 255, 255, 0.12), inset 0 0 12px rgba(255,255,255,0.06)",
+      }
+    : {
+        text: "STOP",
+        textColor: "#ff4d4d",
+        textGlow:
+          "0 0 8px rgba(255,77,77,0.85), 0 0 20px rgba(239,68,68,0.5)",
+        slabFrom: "#ff3b3b",
+        slabTo: "#d31313",
+        slabGlow:
+          "0 0 16px rgba(239, 68, 68, 0.8), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.3)",
+        dotColor: "#200303",
+        btnBorder: "rgba(239, 68, 68, 0.35)",
+        btnGlow:
+          "0 0 22px rgba(239, 68, 68, 0.25), inset 0 0 14px rgba(239,68,68,0.12)",
+      };
 
-    // saat slab mulai balik (retract) warnanya ganti
-    window.setTimeout(() => setIsStop(next), 450);
-    window.setTimeout(() => setIsAnimating(false), 900);
+  // Slab melebar jika di-hover atau saat animasi klik sedang jalan
+  const isExpanded = animatingSlab || hover;
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (isBusyRef.current) return;
+    isBusyRef.current = true;
+
+    // 1. Luncurkan slab sampai penuh
+    setAnimatingSlab(true);
+
+    // 2. Setelah penuh (durasi 260ms), tarik balik ke posisi awal
+    setTimeout(() => {
+      setAnimatingSlab(false);
+
+      // 3. Setelah slab benar-benar kembali tertutup (260ms lagi), barulah ganti mode
+      setTimeout(() => {
+        const nextMode = mode === "PLAY" ? "STOP" : "PLAY";
+        setMode(nextMode);
+        onModeChange?.(nextMode);
+        isBusyRef.current = false;
+      }, 260);
+    }, 280);
+    void e;
   };
 
-  const currentText = isStop ? "STOP" : "PLAY";
-  const themeColor = isStop ? "#ff3344" : "#ffffff";
-  const themeGlow = isStop
-    ? "rgba(255,51,68,0.7)"
-    : "rgba(255,255,255,0.75)";
-  const themeBorder = isStop
-    ? "rgba(255,51,68,0.5)"
-    : "rgba(255,255,255,0.35)";
-  const themeBgInset = isStop
-    ? "rgba(255,20,40,0.15)"
-    : "rgba(255,255,255,0.08)";
-
   return (
-    <div style={{ display: "inline-block" }}>
+    <button
+      ref={ref}
+      className={className}
+      onClick={handleClick}
+      onMouseEnter={() => !isBusyRef.current && setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => !isBusyRef.current && setHover(true)}
+      onBlur={() => setHover(false)}
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        height: 44,
+        width: 116, // pas untuk teks 4 huruf (PLAY / STOP)
+        overflow: "hidden",
+        borderRadius: 12,
+        border: `1px solid ${theme.btnBorder}`,
+        cursor: "pointer",
+        padding: 0,
+        background: "linear-gradient(180deg, #161616 0%, #070707 100%)",
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.4), ${theme.btnGlow}`,
+        transition:
+          "border-color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease",
+        ...style,
+      }}
+      {...rest}
+    >
       <style>{`
-        .psb-btn {
-          --border-radius: 24px;
-          --padding: 5px;
-          --transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-          user-select: none;
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: auto;
-          padding: 0.55em 1.25em 0.55em 1em;
-          font-family: "Poppins","Inter",system-ui,sans-serif;
-          font-size: 1rem;
-          font-weight: 600;
-          letter-spacing: 0.06em;
-          background-color: #0d0d0d;
-          border: 1px solid ${themeBorder};
-          border-radius: var(--border-radius);
-          cursor: pointer;
-          overflow: hidden;
-          color: ${themeColor};
-          box-shadow:
-            inset 0px 1px 1px ${themeBorder},
-            inset 0px 4px 8px ${themeBgInset},
-            0px 0px 12px ${themeGlow},
-            0px 4px 15px rgba(0,0,0,0.5);
-          transition: border var(--transition), box-shadow var(--transition), background-color var(--transition);
+        @keyframes bd-dot-wave {
+          0%, 70%, 100% { opacity: 0.25; transform: scale(0.85); }
+          35% { opacity: 1; transform: scale(1); }
         }
-        .psb-noise {
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          pointer-events: none;
-          opacity: 0.28;
-          mix-blend-mode: overlay;
-          z-index: 2;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-        }
-        .psb-btn::before {
-          content: "";
-          position: absolute;
-          inset: calc(-1 * var(--padding));
-          border-radius: calc(var(--border-radius) + var(--padding));
-          pointer-events: none;
-          background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.6));
-          box-shadow: 0 0 16px ${themeBgInset}, inset 0 1px 1px ${themeBorder};
-          z-index: -1;
-          transition: box-shadow var(--transition);
-        }
-        .psb-btn::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          pointer-events: none;
-          background: linear-gradient(0deg, ${themeGlow} 0%, transparent 70%);
-          opacity: 0.15;
-          transition: opacity var(--transition), filter var(--transition);
-          z-index: 1;
-        }
-        .psb-txt { position: relative; display: inline-flex; align-items: center; z-index: 3; }
-        .psb-letter {
-          position: relative; display: inline-block;
-          color: ${themeColor};
-          text-shadow: 0 0 8px ${themeGlow};
-          animation: psb-letter-glow 2.4s ease-in-out infinite;
-          transition: color var(--transition), text-shadow var(--transition);
-        }
-        @keyframes psb-letter-glow {
-          0%,100% { opacity: 0.85; text-shadow: 0 0 4px ${themeGlow}; }
-          50% { opacity: 1; text-shadow: 0 0 12px ${themeColor}, 0 0 18px ${themeGlow}; }
-        }
-        .psb-svg {
-          width: 17px; height: 17px; margin-right: 0.55rem;
-          color: ${themeColor};
-          filter: drop-shadow(0 0 6px ${themeGlow});
-          z-index: 3;
-          transition: color var(--transition), filter var(--transition), transform 0.25s ease;
-        }
-        .psb-btn:hover {
-          box-shadow: inset 0px 1px 2px ${themeColor}, inset 0px 4px 10px ${themeBgInset}, 0px 0px 20px ${themeGlow};
-        }
-        .psb-btn:hover::after { opacity: 0.35; }
-        .psb-btn:hover .psb-svg { transform: scale(1.1); }
-        .psb-btn.psb-anim::after { animation: psb-slab 0.9s cubic-bezier(0.25,1,0.5,1) forwards; }
-        .psb-btn.psb-anim .psb-letter { animation: psb-pulse 0.9s ease-in-out forwards; }
-        .psb-btn.psb-anim .psb-svg { transform: scale(1.25); }
-        @keyframes psb-slab {
-          0% { opacity: 0.2; }
-          45% { opacity: 0.9; background: radial-gradient(circle at center, ${themeColor} 0%, ${themeGlow} 70%, transparent 100%); filter: brightness(220%); }
-          100% { opacity: 0.15; background: linear-gradient(0deg, ${themeGlow} 0%, transparent 70%); filter: brightness(100%); }
-        }
-        @keyframes psb-pulse {
-          0%,100% { transform: scale(1); }
-          45% { transform: scale(1.15); color: #fff; text-shadow: 0 0 16px #fff, 0 0 24px ${themeGlow}; }
+        .amb-dot {
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: bd-dot-wave 1.4s ease-in-out infinite;
         }
         @media (prefers-reduced-motion: reduce) {
-          .psb-letter, .psb-btn.psb-anim::after, .psb-btn.psb-anim .psb-letter { animation: none; }
+          .amb-dot { animation: none; opacity: 1; }
         }
       `}</style>
 
-      <div style={{ position: "relative", display: "inline-block" }}>
-        <button
-          type="button"
-          className={`psb-btn${isAnimating ? " psb-anim" : ""}`}
-          onClick={handleClick}
-          aria-label={isStop ? "Stop music" : "Play music"}
-        >
-          <svg className="psb-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            {isStop ? (
-              <rect x="6" y="6" width="12" height="12" rx="2" />
-            ) : (
-              <polygon points="7,5 19,12 7,19" />
-            )}
-          </svg>
+      {/* Layer Noise Texture yang menyelimuti seluruh button & radius */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "inherit",
+          pointerEvents: "none",
+          opacity: 0.14,
+          mixBlendMode: "overlay",
+          zIndex: 2,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+        }}
+      />
 
-          <div className="psb-txt">
-            {currentText.split("").map((letter, index) => (
-              <span
-                key={`${currentText}-${index}`}
-                className="psb-letter"
-                style={{ animationDelay: `${index * 0.08}s` }}
-              >
-                {letter}
-              </span>
-            ))}
-          </div>
+      {/* Label Text PLAY / STOP */}
+      <span
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          right: 18,
+          zIndex: 3,
+          display: "flex",
+          alignItems: "center",
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          color: theme.textColor,
+          textShadow: theme.textGlow,
+          transition: "color 0.2s ease, text-shadow 0.2s ease",
+          userSelect: "none",
+        }}
+      >
+        {theme.text}
+      </span>
 
-          <div className="psb-noise" />
-        </button>
-      </div>
-    </div>
+      {/* Slab yang melebar dan kembali */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: 4,
+          bottom: 4,
+          left: 4,
+          zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          width: isExpanded ? "calc(100% - 8px)" : 36,
+          overflow: "hidden",
+          borderRadius: 8,
+          paddingLeft: 11,
+          paddingRight: 10,
+          background: `linear-gradient(180deg, ${theme.slabFrom} 0%, ${theme.slabTo} 100%)`,
+          boxShadow: theme.slabGlow,
+          transition:
+            "width 0.26s cubic-bezier(0.65, 0, 0.35, 1), background 0.2s ease, box-shadow 0.2s ease",
+        }}
+      >
+        <DotGroup index={0} dotColor={theme.dotColor} />
+        <DotGroup index={1} dotColor={theme.dotColor} />
+        <DotGroup index={2} dotColor={theme.dotColor} />
+        <DotGroup index={3} dotColor={theme.dotColor} />
+        <DotGroup index={4} dotColor={theme.dotColor} />
+      </span>
+    </button>
   );
-}
+});
+
+export default AntiMetalButton;

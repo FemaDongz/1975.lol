@@ -1,0 +1,240 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+// 5 slot video di sel grid shader (7 kolom — HARUS sama supaya pas).
+// Tiap slot BERJALAN SENDIRI (fase beda): fade-out → pindah sel + ganti file
+// (dari 10 video random) → fade-in, berulang. Jadi hampir selalu terlihat
+// 5 video sekaligus, tapi tidak muncul/hilang bersamaan. Saturasi 0 +
+// vignette per-sel, muted autoplay.
+
+const FILES = [
+  "s1.mp4", "s2.mp4", "s3.mp4", "s4.mp4", "s5.mp4",
+  "s6.mp4", "s7.mp4", "s8.mp4", "s9.mp4", "s10.mp4",
+];
+
+const SLOTS = 5;
+const SHOW_MS = 5000;
+const FADE_MS = 800;
+
+// Cache pintar: simpan daftar file yang sudah terbukti valid di localStorage,
+// supaya kunjungan berikutnya tidak cek ulang. Key ikut daftar FILES.
+const CACHE_KEY = "gridvideos-ok-v1";
+
+async function probeFile(f: string): Promise<boolean> {
+  try {
+    const r = await fetch(`/videos/${f}`, { method: "HEAD" });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+const rand = (n: number) => Math.floor(Math.random() * n);
+type Cell = { c: number; r: number };
+type Slot = { pos: Cell; file: string; vis: number; born: number };
+
+export default function GridVideos({ cols = 7 }: { cols?: number }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0 });
+  const geoRef = useRef(geo);
+  geoRef.current = geo;
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [validFiles, setValidFiles] = useState<string[]>(FILES);
+  const validRef = useRef<string[]>(FILES);
+  validRef.current = validFiles;
+
+  // ukur grid (kolom = cols, samain shader)
+  useEffect(() => {
+    const parent = rootRef.current?.parentElement;
+    if (!parent) return;
+    const measure = () => {
+      const W = parent.clientWidth;
+      const H = parent.clientHeight;
+      if (!W || !H) return;
+      const cell = W / cols;
+      const rows = Math.max(2, 2 * Math.round(H / cell / 2));
+      setGeo({ H, cell, rows });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [cols]);
+
+  const pickCell = (used: Cell[]): Cell => {
+    const rows = geoRef.current.rows || 2;
+    for (let t = 0; t < 80; t++) {
+      const c = rand(cols);
+      const r = rand(rows);
+      const clash = used.some(
+        (u) =>
+          (u.c === c && u.r === r) || Math.abs(u.c - c) + Math.abs(u.r - r) === 1
+      );
+      if (!clash) return { c, r };
+    }
+    return { c: rand(cols), r: rand(rows) };
+  };
+
+  // 0) cache pintar: cek HEAD tiap file sekali, hanya yang valid dipakai.
+  // yang lolos disimpan (localStorage) + di-preload supaya langsung tampil.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      let cached: string[] = [];
+      try {
+        cached = JSON.parse(
+          window.localStorage.getItem(CACHE_KEY) ?? "[]"
+        );
+      } catch {
+        cached = [];
+      }
+      const known = cached.filter((f) => FILES.includes(f));
+      const rest = FILES.filter((f) => !known.includes(f));
+      const ok: string[] = [...known];
+      // preload yang sudah diketahui valid
+      known.forEach((f) => {
+        const v = document.createElement("video");
+        v.preload = "auto";
+        v.src = `/videos/${f}`;
+      });
+      for (const f of rest) {
+        if (!alive) return;
+        // eslint-disable-next-line no-await-in-loop
+        const good = await probeFile(f);
+        if (!alive) return;
+        if (good) {
+          ok.push(f);
+          const v = document.createElement("video");
+          v.preload = "auto";
+          v.src = `/videos/${f}`;
+        }
+      }
+      if (!alive || !ok.length) return;
+      validRef.current = ok;
+      setValidFiles(ok);
+      try {
+        window.localStorage.setItem(CACHE_KEY, JSON.stringify(ok));
+      } catch {
+        /* abaikan */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // file yang belum dipakai slot lain, dari daftar VALID (hasil cek cache)
+  const pickFile = (used: string[]): string => {
+    const list = validRef.current.length ? validRef.current : FILES;
+    const free = list.filter((f) => !used.includes(f));
+    const pool = free.length ? free : list;
+    return pool[rand(pool.length)];
+  };
+
+  // init 5 slot dengan fase tersebar (born berbeda jauh)
+  useEffect(() => {
+    if (!geo.rows || slots.length) return;
+    const used: Cell[] = [];
+    const usedFiles: string[] = [];
+    const now = performance.now();
+    const arr: Slot[] = [];
+    for (let i = 0; i < SLOTS; i++) {
+      const p = pickCell(used);
+      used.push(p);
+      const f = pickFile(usedFiles);
+      usedFiles.push(f);
+      arr.push({
+        pos: p,
+        file: f,
+        vis: 1,
+        born: now - Math.floor((SHOW_MS / SLOTS) * i),
+      });
+    }
+    setSlots(arr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geo.rows, slots.length]);
+
+  // tiap slot siklus sendiri (interval ringan)
+  useEffect(() => {
+    if (slots.length !== SLOTS) return;
+    const id = setInterval(() => {
+      const now = performance.now();
+      setSlots((prev) => {
+        let changed = false;
+        const next = prev.map((s, i) => {
+          const age = now - s.born;
+          const vis = age < SHOW_MS - FADE_MS ? 1 : age < SHOW_MS ? 0 : 0;
+          if (age >= SHOW_MS) {
+            const others = prev.filter((_, k) => k !== i).map((x) => x.pos);
+            const othersFiles = prev
+              .filter((_, k) => k !== i)
+              .map((x) => x.file);
+            const np = pickCell(others);
+            const nf = pickFile(othersFiles);
+            changed = true;
+            return { pos: np, file: nf, vis: 0, born: now };
+          }
+          if (s.vis !== vis) {
+            changed = true;
+            return { ...s, vis };
+          }
+          return s;
+        });
+        return changed ? next : prev;
+      });
+    }, 200);
+    return () => clearInterval(id);
+  }, [slots.length]);
+
+  return (
+    <div
+      ref={rootRef}
+      aria-hidden="true"
+      style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none" }}
+    >
+      {geo.cell > 0 &&
+        slots.map((s, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: s.pos.c * geo.cell,
+              top: geo.H / 2 - (geo.rows * geo.cell) / 2 + s.pos.r * geo.cell,
+              width: geo.cell,
+              height: geo.cell,
+              opacity: s.vis,
+              transition: `opacity ${FADE_MS}ms ease`,
+              filter: "saturate(0)",
+              pointerEvents: "none",
+            }}
+          >
+            <video
+              src={`/videos/${s.file}`}
+              muted
+              loop
+              playsInline
+              autoPlay
+              preload="auto"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "radial-gradient(130% 130% at 50% 50%, transparent 45%, rgba(0,0,0,.35) 78%, rgba(0,0,0,.85) 100%)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
+        ))}
+    </div>
+  );
+}

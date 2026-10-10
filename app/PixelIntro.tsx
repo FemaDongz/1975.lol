@@ -406,13 +406,28 @@ export default function PixelIntro({
       return cols;
     }
 
-    function sizeFor(cols: number, rows: number, wMul = 0.94, hMul = 0.6) {
-      return Math.max(
-        5,
-        Math.floor(
-          Math.min((canvas.width * wMul) / cols, (canvas.height * hMul) / rows)
-        )
-      );
+    // Ukuran pixel teks proporsional grid background (7 sel selebar canvas):
+    // ambil pembagi bulat dari sel background supaya selaras.
+    function snappedSize(cols: number, rows: number, wMul = 0.94, hMul = 0.6) {
+      const bgCell = canvas.width / 7;
+      if (!(bgCell > 0)) return 5;
+      const fit =
+        Math.min((canvas.width * wMul) / cols, (canvas.height * hMul) / rows) ||
+        5;
+      let k = Math.max(1, Math.round(bgCell / Math.max(1, fit)));
+      let size = Math.max(5, Math.floor(bgCell / k));
+      let guard = 0;
+      while (
+        (cols * size > canvas.width * wMul ||
+          rows * size > canvas.height * hMul) &&
+        size > 5 &&
+        guard < 64
+      ) {
+        k++;
+        size = Math.max(5, Math.floor(bgCell / k));
+        guard++;
+      }
+      return size;
     }
 
     function layoutLines(
@@ -460,7 +475,7 @@ export default function PixelIntro({
     function buildEntry(entry: TextEntry): TextArt {
       const sRows = glyphOf(entry.single[0]).h;
       const sSp = sRows === 11 ? 2 : 1;
-      const sSize = sizeFor(colsOf(entry.single, sSp), sRows);
+      const sSize = snappedSize(colsOf(entry.single, sSp), sRows);
       // Layar kecil & ada varian susun: tampil dua baris supaya tetap besar.
       if (entry.stacked && sSize < 11) {
         const infos = entry.stacked.map((line) => {
@@ -470,14 +485,8 @@ export default function PixelIntro({
         const gapRows = 2;
         const totalRows =
           infos.reduce((a, b) => a + b.rows, 0) + gapRows * (infos.length - 1);
-        const size = Math.max(
-          5,
-          Math.floor(
-            Math.min(
-              ...infos.map((b) => (canvas.width * 0.9) / b.cols),
-              (canvas.height * 0.66) / totalRows
-            )
-          )
+        const size = Math.min(
+          ...infos.map((b) => snappedSize(b.cols, totalRows, 0.9, 0.66))
         );
         return layoutLines(entry.stacked, size, gapRows);
       }

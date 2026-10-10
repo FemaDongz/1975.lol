@@ -106,9 +106,9 @@ export default function PlayButton() {
   const label = playing ? "STOP" : "PLAY";
   const accentFrom = playing ? "#ff4d4d" : "#ffffff";
   const accentTo = playing ? "#e01b1b" : "#e6e6e6";
-  // lebar button = teks terpanjang + ruang dot + padding (diukur, bukan fix)
+  // lebar button = teks terpanjang + ruang dot (34) + padding (rapat)
   const btnWidth =
-    Math.max(measureText("PLAY"), measureText("STOP")) + 36 + 18 + 18;
+    Math.max(measureText("PLAY"), measureText("STOP")) + 34 + 12 + 8;
 
   return (
     <>
@@ -165,11 +165,11 @@ export default function PlayButton() {
             top: 4,
             bottom: 4,
             left: 4,
-            zIndex: 10,
+            zIndex: 20,
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-start",
-            width: slideOpen ? "calc(100% - 8px)" : 36,
+            justifyContent: slideOpen ? "flex-start" : "center",
+            width: slideOpen ? "calc(100% - 8px)" : 34,
             overflow: "hidden",
             borderRadius: "clamp(11px, 11px, 18px)",
             paddingLeft: 8,
@@ -183,18 +183,21 @@ export default function PlayButton() {
           <DotGroup dotColor="#0f0f0f" />
         </span>
 
-        {/* teks KAPITAL di kanan, selalu di atas slab */}
+        {/* teks KAPITAL di kanan; z di BAWAH slab supaya tertutup saat slab penuh */}
         <span
           style={{
             position: "relative",
-            zIndex: 30,
+            zIndex: 5,
             marginLeft: "auto",
-            paddingRight: 16,
+            paddingRight: 14,
             fontSize: 14,
             fontWeight: 700,
             letterSpacing: "0.08em",
-            color: "#ffffff",
-            textShadow: "0 1px 2px rgba(0,0,0,.5)",
+            color: playing ? "#ff4d4d" : "#ffffff",
+            textShadow: playing
+              ? "0 0 8px rgba(255,60,60,0.9), 0 0 3px rgba(255,60,60,0.7)"
+              : "0 1px 2px rgba(0,0,0,.5)",
+            transition: "color 0.35s ease, text-shadow 0.35s ease",
           }}
         >
           {label}

@@ -13,7 +13,6 @@ const FILES = [
   "s6.mp4", "s7.mp4", "s8.mp4", "s9.mp4", "s10.mp4",
 ];
 
-const COLS = 7; // samain grid shader
 const SLOTS = 5;
 const SHOW_MS = 5000;
 const FADE_MS = 800;
@@ -22,14 +21,14 @@ const rand = (n: number) => Math.floor(Math.random() * n);
 type Cell = { c: number; r: number };
 type Slot = { pos: Cell; file: string; vis: number; born: number };
 
-export default function GridVideos() {
+export default function GridVideos({ cols = 7 }: { cols?: number }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [geo, setGeo] = useState({ H: 0, cell: 0, rows: 0 });
   const geoRef = useRef(geo);
   geoRef.current = geo;
   const [slots, setSlots] = useState<Slot[]>([]);
 
-  // ukur grid (kolom tetap 7, samain shader)
+  // ukur grid (kolom = cols, samain shader)
   useEffect(() => {
     const parent = rootRef.current?.parentElement;
     if (!parent) return;
@@ -37,19 +36,19 @@ export default function GridVideos() {
       const W = parent.clientWidth;
       const H = parent.clientHeight;
       if (!W || !H) return;
-      const cell = W / COLS;
+      const cell = W / cols;
       const rows = Math.max(2, 2 * Math.round(H / cell / 2));
       setGeo({ H, cell, rows });
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, []);
+  }, [cols]);
 
   const pickCell = (used: Cell[]): Cell => {
     const rows = geoRef.current.rows || 2;
     for (let t = 0; t < 80; t++) {
-      const c = rand(COLS);
+      const c = rand(cols);
       const r = rand(rows);
       const clash = used.some(
         (u) =>
@@ -57,7 +56,7 @@ export default function GridVideos() {
       );
       if (!clash) return { c, r };
     }
-    return { c: rand(COLS), r: rand(rows) };
+    return { c: rand(cols), r: rand(rows) };
   };
 
   // init 5 slot dengan fase tersebar (born berbeda jauh)

@@ -3,6 +3,7 @@
 import AetherHero from "../AetherHero";
 import PixelIntro, { type TextEntry } from "../PixelIntro";
 import GridVideos from "../GridVideos";
+import useGridCols from "../useGridCols";
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
@@ -43,6 +44,7 @@ const SEQ: TextEntry[] = [
 ];
 
 export default function Test2Page() {
+  const cols = useGridCols();
   return (
     <main
       style={{
@@ -75,9 +77,10 @@ export default function Test2Page() {
           ctaLabel=""
           overlayGradient="linear-gradient(180deg, #00000055, transparent 45%, transparent)"
           height="100%"
+          cols={cols}
         />
         {/* Video YouTube random di area grid, ganti tiap 5 detik */}
-        <GridVideos />
+        <GridVideos cols={cols} />
         {/* Vignette rounded halus (mengikuti lengkung container) */}
         <div
           aria-hidden="true"
@@ -92,7 +95,7 @@ export default function Test2Page() {
           }}
         />
         {/* Sekuens pixel: 1975 -> COMING SOON -> [IG] Femaandara, loop */}
-        <PixelIntro loop onDone={() => {}} texts={SEQ} />
+        <PixelIntro loop onDone={() => {}} texts={SEQ} cols={cols} />
       </div>
     </main>
   );

@@ -19,6 +19,7 @@ export type AetherHeroProps = {
   /* ---------- Canvas/shader ---------- */
   fragmentSource?: string; // override the shader
   dprMax?: number; // cap DPR (default 2)
+  cols?: number; // jumlah kolom grid (default 7)
   clearColor?: [number, number, number, number];
 
   /* ---------- Misc ---------- */
@@ -33,6 +34,7 @@ precision highp float;
 out vec4 O;
 uniform float time;
 uniform vec2 resolution;
+uniform float uCols;
 #define FC gl_FragCoord.xy
 #define R resolution
 #define T time
@@ -58,9 +60,9 @@ vec3 scene(vec2 uv) {
 void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
-  // grid asli: garis glow tipis, 7 sel pas di lebar (simetris tengah).
-  // cos di sumbu-x supaya garis vertikal jatuh tepat di batas sel video.
-  float s = 7.0 * 3.14159265 / (R.x / MN);
+  // grid: uCols sel pas di lebar (simetris tengah). cos di sumbu-x supaya
+  // garis vertikal jatuh tepat di batas sel video.
+  float s = uCols * 3.14159265 / (R.x / MN);
   float e = 9e-4;
   // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
@@ -102,6 +104,7 @@ export default function AetherHero({
   /* Shader */
   fragmentSource = DEFAULT_FRAG,
   dprMax = 2,
+  cols = 7,
   clearColor = [0, 0, 0, 1],
 
   /* Misc */
@@ -115,6 +118,7 @@ export default function AetherHero({
   const bufRef = useRef<WebGLBuffer | null>(null);
   const uniTimeRef = useRef<WebGLUniformLocation | null>(null);
   const uniResRef = useRef<WebGLUniformLocation | null>(null);
+  const uniColsRef = useRef<WebGLUniformLocation | null>(null);
   const rafRef = useRef<number | null>(null);
 
   // Compile helpers
@@ -186,6 +190,7 @@ export default function AetherHero({
 
     uniTimeRef.current = gl.getUniformLocation(prog, 'time');
     uniResRef.current = gl.getUniformLocation(prog, 'resolution');
+    uniColsRef.current = gl.getUniformLocation(prog, 'uCols');
 
     // Clear color
     gl.clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
@@ -227,6 +232,7 @@ export default function AetherHero({
       gl.useProgram(prog);
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       if (uniResRef.current) gl.uniform2f(uniResRef.current, canvas.width, canvas.height);
+      if (uniColsRef.current) gl.uniform1f(uniColsRef.current, cols);
       if (uniTimeRef.current) gl.uniform1f(uniTimeRef.current, now * 1e-3);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
@@ -241,7 +247,7 @@ export default function AetherHero({
       if (bufRef.current) gl.deleteBuffer(bufRef.current);
       if (programRef.current) gl.deleteProgram(programRef.current);
     };
-  }, [fragmentSource, dprMax, clearColor]);
+  }, [fragmentSource, dprMax, clearColor, cols]);
 
   const justify =
     align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';

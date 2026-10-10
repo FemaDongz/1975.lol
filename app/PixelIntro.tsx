@@ -348,10 +348,12 @@ export default function PixelIntro({
   onDone,
   loop = false,
   texts = [{ single: TEXT_1975 }],
+  cols = 7,
 }: {
   onDone: () => void;
   loop?: boolean;
   texts?: TextEntry[];
+  cols?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textsRef = useRef(texts);
@@ -409,7 +411,7 @@ export default function PixelIntro({
     // Ukuran pixel teks proporsional grid background (7 sel selebar canvas):
     // ambil pembagi bulat dari sel background supaya selaras.
     function snappedSize(cols: number, rows: number, wMul = 0.7, hMul = 0.45) {
-      const bgCell = canvas.width / 7;
+      const bgCell = canvas.width / cols;
       if (!(bgCell > 0)) return 5;
       const fit =
         Math.min((canvas.width * wMul) / cols, (canvas.height * hMul) / rows) ||
@@ -516,38 +518,26 @@ export default function PixelIntro({
     window.addEventListener("resize", resize);
     resize();
 
-    function drawRgb(x: number, y: number, s: number, color: string) {
+    // Batch glow: shadowBlur (mahal di HP) diset SEKALI per jenis, bukan
+    // per-pixel. Gambar semua persegi dulu, baru blur-nya. Ini yang bikin
+    // teks 2 baris tetap lancar.
+    function drawBatch(
+      px: { x: number; y: number }[],
+      s: number,
+      color: string,
+      blurMul: number
+    ) {
+      if (!px.length) return;
+      // lapisan glow (satu blur untuk semua)
       ctx.save();
       ctx.shadowColor = color;
-      ctx.shadowBlur = s * 1.5;
+      ctx.shadowBlur = s * blurMul;
       ctx.fillStyle = color;
-      ctx.fillRect(x, y, s, s);
-      ctx.shadowBlur = s * 0.4;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(x, y, s, s);
+      for (let i = 0; i < px.length; i++) ctx.fillRect(px[i].x, px[i].y, s, s);
       ctx.restore();
-    }
-    function drawWhite(x: number, y: number, s: number) {
-      ctx.save();
-      ctx.shadowColor = "#ffffff";
-      ctx.shadowBlur = s * 1.8;
-      ctx.fillStyle = "rgba(255,255,255,0.65)";
-      ctx.fillRect(x, y, s, s);
-      ctx.shadowBlur = s * 0.5;
+      // inti putih (tanpa shadow)
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(x, y, s, s);
-      ctx.restore();
-    }
-    function drawRed(x: number, y: number, s: number) {
-      ctx.save();
-      ctx.shadowColor = "#ff0033";
-      ctx.shadowBlur = s * 1.2;
-      ctx.fillStyle = "#ff0033";
-      ctx.fillRect(x, y, s, s);
-      ctx.shadowBlur = s * 0.3;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(x, y, s, s);
-      ctx.restore();
+      for (let i = 0; i < px.length; i++) ctx.fillRect(px[i].x, px[i].y, s, s);
     }
 
     function render(timestamp: number) {
@@ -562,6 +552,9 @@ export default function PixelIntro({
         const art = arts[seg.art];
         if (elapsed < seg.appearEnd) {
           const progress = (elapsed - seg.start) / T_APPEAR;
+          // kumpulkan per warna supaya batch (glow sekali)
+          const white: { x: number; y: number }[] = [];
+          const rgbByColor = new Map<string, { x: number; y: number }[]>();
           art.pixels.forEach((p) => {
             if (progress < p.appearTime) return;
             const since = progress - p.appearTime;
@@ -569,29 +562,39 @@ export default function PixelIntro({
               if (Math.random() < 0.52) {
                 const dyn =
                   Math.random() < 0.35
-                    ? RGB_PALETTE[
-                        Math.floor(Math.random() * RGB_PALETTE.length)
-                      ]
+                    ? RGB_PALETTE[Math.floor(Math.random() * RGB_PALETTE.length)]
                     : p.rgbColor;
-                drawRgb(p.baseX, p.baseY, art.size, dyn);
+                const arr = rgbByColor.get(dyn) ?? [];
+                arr.push({ x: p.baseX, y: p.baseY });
+                rgbByColor.set(dyn, arr);
               }
             } else {
-              drawWhite(p.baseX, p.baseY, art.size);
+              white.push({ x: p.baseX, y: p.baseY });
             }
           });
+          rgbByColor.forEach((arr, color) => drawBatch(arr, art.size, color, 1.5));
+          drawBatch(white, art.size, "#ffffff", 1.8);
         } else if (elapsed < seg.holdEnd) {
-          art.pixels.forEach((p) => drawWhite(p.baseX, p.baseY, art.size));
+          drawBatch(
+            art.pixels.map((p) => ({ x: p.baseX, y: p.baseY })),
+            art.size,
+            "#ffffff",
+            1.8
+          );
         } else if (elapsed < seg.vanishEnd) {
           const progress = (elapsed - seg.holdEnd) / T_VANISH;
+          const white: { x: number; y: number }[] = [];
+          const red: { x: number; y: number }[] = [];
           art.pixels.forEach((p) => {
             if (progress > p.disappearTime + 0.24) return;
             if (progress > p.disappearTime) {
-              if (Math.random() < 0.52)
-                drawRed(p.baseX, p.baseY, art.size);
+              if (Math.random() < 0.52) red.push({ x: p.baseX, y: p.baseY });
             } else {
-              drawWhite(p.baseX, p.baseY, art.size);
+              white.push({ x: p.baseX, y: p.baseY });
             }
           });
+          drawBatch(white, art.size, "#ffffff", 1.8);
+          drawBatch(red, art.size, "#ff0033", 1.2);
         }
       }
 
@@ -610,7 +613,7 @@ export default function PixelIntro({
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
     };
-  }, [onDone, loop]);
+  }, [onDone, loop, cols]);
 
   return (
     <canvas

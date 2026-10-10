@@ -108,7 +108,7 @@ export default function PlayButton() {
   const accentTo = playing ? "#e01b1b" : "#e6e6e6";
   // lebar button = teks terpanjang + ruang dot (34) + padding (rapat)
   const btnWidth =
-    Math.max(measureText("PLAY"), measureText("STOP")) + 34 + 12 + 8;
+    Math.max(measureText("PLAY"), measureText("STOP")) + 34 + 10 + 4;
 
   return (
     <>
@@ -123,7 +123,11 @@ export default function PlayButton() {
           animation: mb-dot-wave 1.4s ease-in-out infinite;
         }
         .mb-slab {
-          transition: width ${SLIDE_MS}ms cubic-bezier(0.65,0,0.35,1), background 0.35s ease, box-shadow 0.35s ease;
+          transition: width ${SLIDE_MS}ms cubic-bezier(0.65,0,0.35,1), padding 0.3s ease, background 0.35s ease, box-shadow 0.35s ease;
+        }
+        @keyframes mb-slide-in {
+          from { opacity: 0; transform: translateX(-10px); }
+          to { opacity: 1; transform: translateX(0); }
         }
         @media (prefers-reduced-motion: reduce) {
           .mb-dot { animation: none; opacity: 1; }
@@ -173,8 +177,8 @@ export default function PlayButton() {
             width: slideOpen ? "calc(100% - 8px)" : 34,
             overflow: "hidden",
             borderRadius: "clamp(11px, 11px, 18px)",
-            paddingLeft: 8,
-            paddingRight: 8,
+            paddingLeft: slideOpen ? 8 : 0,
+            paddingRight: slideOpen ? 8 : 0,
             background: `linear-gradient(180deg, ${accentFrom} 0%, ${accentTo} 100%)`,
             boxShadow: playing
               ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 0 12px rgba(255,60,60,0.7)"
@@ -183,24 +187,22 @@ export default function PlayButton() {
         >
           {/* dot utama: selalu tampil, di tengah kotak saat diam */}
           <DotGroup dotColor="#0f0f0f" />
-          {/* dot tambahan: muncul & memanjang ke kanan saat slab penuh */}
-          {[1, 2, 3, 4].map((k) => (
-            <span
-              key={k}
-              className="mb-extra"
-              style={{
-                display: "inline-flex",
-                opacity: slideOpen ? 1 : 0,
-                transform: slideOpen ? "translateX(0)" : "translateX(-8px)",
-                transition: `opacity 0.25s ease ${k * 70}ms, transform 0.3s ease ${
-                  k * 70
-                }ms`,
-                marginLeft: 6,
-              }}
-            >
-              <DotGroup dotColor="#0f0f0f" />
-            </span>
-          ))}
+          {/* dot tambahan: hanya saat slab penuh, memanjang ke kanan */}
+          {slideOpen &&
+            [1, 2, 3, 4].map((k) => (
+              <span
+                key={k}
+                className="mb-extra"
+                style={{
+                  display: "inline-flex",
+                  marginLeft: 6,
+                  opacity: 1,
+                  animation: `mb-slide-in 0.3s ease ${k * 70}ms both`,
+                }}
+              >
+                <DotGroup dotColor="#0f0f0f" />
+              </span>
+            ))}
         </span>
 
         {/* teks KAPITAL di kanan; z di BAWAH slab supaya tertutup saat slab penuh */}
@@ -209,7 +211,7 @@ export default function PlayButton() {
             position: "relative",
             zIndex: 5,
             marginLeft: "auto",
-            paddingRight: 14,
+            paddingRight: 10,
             fontSize: 14,
             fontWeight: 700,
             letterSpacing: "0.08em",

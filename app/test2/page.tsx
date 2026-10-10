@@ -28,13 +28,7 @@ export default function Test2Page() {
           overflow: "hidden",
         }}
       >
-        <AetherHero
-          title=""
-          subtitle=""
-          ctaLabel=""
-          overlayGradient="none"
-          height="100%"
-        />
+        <AetherHero height="100%" />
       </div>
     </main>
   );

@@ -46,9 +46,6 @@ float pattern(vec2 uv) {
   }
   return d;	
 }
-float h21(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-}
 vec3 scene(vec2 uv) {
   vec3 col=vec3(0);
   uv=vec2(atan(uv.x,uv.y)*2./6.28318,-log(length(uv))+T);
@@ -62,24 +59,19 @@ void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
   float s=12., e=9e-4;
-  col+=e/(sin(uv.x*s)*cos(uv.y*s));
-  // kilauan acak di sisi garis grid (pengganti laser): titik cahaya kecil
-  // yang bergoyang pelan + kedip lambat, tidak bareng satu sama lain
-  vec2 fgl = fract(uv * (s / 3.14159265));
-  vec2 dgl = min(fgl, 1.0 - fgl) * (3.14159265 / s);
-  float lineD = min(dgl.x, dgl.y);
-  float nearLine = 1.0 - smoothstep(0.0, 0.045, lineD);
-  vec2 cid = floor(uv * 4.0);
-  float ch = h21(cid);
-  vec2 cp = vec2(h21(cid + 11.0) - 0.5, h21(cid + 27.0) - 0.5) * 0.22;
-  cp.x += sin(T * (0.5 + ch * 0.8) + ch * 40.0) * 0.05;
-  cp.y += cos(T * (0.4 + ch * 0.6) + ch * 29.0) * 0.05;
-  vec2 cf = fract(uv * 4.0) - 0.5;
-  float cd = length(cf - cp);
-  float gate = step(0.35, h21(cid + 5.0));
-  float tw = 0.5 + 0.5 * sin(T * (0.6 + ch) + ch * 6.2831);
-  float glint = gate * nearLine * exp(-cd * cd * 60.0) * (0.25 + 0.75 * tw);
-  col += vec3(1.0, 0.97, 0.92) * glint * 1.6;
+  // bingkai proporsional: margin sama di kanan-kiri-atas-bawah, responsif
+  vec2 halfE = vec2(R.x, R.y) / MN * 0.5;
+  vec2 nrm = uv / halfE; // -1..1 di semua sisi, layar apapun
+  float edge = max(abs(nrm.x), abs(nrm.y));
+  float M = 0.14;
+  float mask = 1.0 - smoothstep(1.0 - M * 2.0, 1.0, edge);
+  // grid di dalam bingkai saja
+  float grid = e/(sin(uv.x*s)*cos(uv.y*s));
+  col += grid * mask;
+  // gradient glow putih dari bawah ke atas + shimmer halus
+  float gg = pow(1.0 - clamp(nrm.y * 0.5 + 0.5, 0.0, 1.0), 2.0);
+  gg *= 0.85 + 0.15 * sin(T * 0.7 + nrm.y * 3.0);
+  col += vec3(1.0) * gg * 0.22 * mask;
   uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
   // scene() (busur pelangi) dimatikan — hanya grid gelap yang tampil
   O=vec4(col,1.);

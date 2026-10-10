@@ -61,7 +61,7 @@ void main() {
   float s=12., e=9e-4;
   col+=e/(sin(uv.x*s)*cos(uv.y*s));
   uv.y+=R.x>R.y?.5:.5*(R.y/R.x);
-  col+=scene(uv);
+  // scene() (busur pelangi) dimatikan — hanya grid gelap yang tampil
   O=vec4(col,1.);
 }`;
 

@@ -58,9 +58,9 @@ vec3 scene(vec2 uv) {
 void main() {
   vec2 uv=(FC-.5*R)/MN;
   vec3 col=vec3(0);
-  // grid asli: garis glow tipis, 8 sel pas di lebar (simetris tengah,
-  // garis jatuh tepat di tepi kiri-kanan)
-  float s = 8.0 * 3.14159265 / (R.x / MN);
+  // grid asli: garis glow tipis, 7 sel pas di lebar (simetris tengah,
+  // garis jatuh tepat di tepi kiri-kanan, tinggi menyesuaikan)
+  float s = 7.0 * 3.14159265 / (R.x / MN);
   float e = 9e-4;
   // koordinat ternormalisasi (-1..1) untuk gradient yang proporsional
   vec2 halfE = vec2(R.x, R.y) / MN * 0.5;

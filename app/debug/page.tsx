@@ -4,7 +4,7 @@ import AetherHero from "../AetherHero";
 import PixelIntro, { type TextEntry } from "../PixelIntro";
 import GridVideos from "../GridVideos";
 import useGridCols from "../useGridCols";
-import MusicControl from "../MusicControl";
+import PlayStopButton from "../PlayStopButton";
 
 const TEXT_1975 = ["1", "9", "7", "5"];
 const TEXT_CS = ["C", "O", "M", "I", "N", "G", " ", "S", "O", "O", "N"];
@@ -109,7 +109,7 @@ export default function Test2Page() {
           zIndex: 60,
         }}
       >
-        <MusicControl />
+        <PlayStopButton />
       </div>
     </main>
   );
